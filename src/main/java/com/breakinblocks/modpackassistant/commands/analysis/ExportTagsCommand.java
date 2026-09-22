@@ -36,7 +36,7 @@ public final class ExportTagsCommand {
 
     private static <T> int export(CommandSourceStack source, RegistryKind kind, ReportFormat format, Registry<T> registry) {
         TagExporter<T> exporter = new TagExporter<>(registry);
-        ReportWriter.Context context = new ReportWriter.Context(source, "/ma exportTags " + kind.getSerializedName() + " " + format.getSerializedName())
+        ReportWriter.Context context = new ReportWriter.Context(source, "/mpa exportTags " + kind.getSerializedName() + " " + format.getSerializedName())
                 .note("registry", exporter.registryName())
                 .note("object_count", exporter.size());
 

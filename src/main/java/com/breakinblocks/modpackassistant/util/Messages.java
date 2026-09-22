@@ -26,8 +26,8 @@ public final class Messages {
     public static final Msg STRUCTLOOT_RULES = msg("structloot.rules", "Global loot modifiers are not evaluated; unsafe or unverified loot tables are skipped");
     public static final Msg LOOT_OUTPUT_LIMIT = msg("loot.output_limit", "Loot output exceeds the per-roll budget");
     public static final Msg RUN_PROGRESS_DYNAMIC = msg("run.progress_dynamic", "Run #%s: %s batches finished, %s work streams pending");
-    public static final Msg RUN_STARTED_DYNAMIC = msg("run.started_dynamic", "Run #%s started: %s. Work is discovered incrementally; use /ma cancel to stop it");
-    public static final Msg RUN_REFUSED_DYNAMIC = msg("run.refused_dynamic", "%s is already running %s (%s batches finished). Wait for it or use /ma cancel");
+    public static final Msg RUN_STARTED_DYNAMIC = msg("run.started_dynamic", "Run #%s started: %s. Work is discovered incrementally; use /mpa cancel to stop it");
+    public static final Msg RUN_REFUSED_DYNAMIC = msg("run.refused_dynamic", "%s is already running %s (%s batches finished). Wait for it or use /mpa cancel");
     public static final Msg MINE_VARIANT_LIMIT = msg("mine.variant_limit", "Mining simulation exceeded max_mining_drop_variants (%s); no barrels were placed");
     public static final Msg MINE_SUMMARY_LIMIT = msg("mine.summary_limit", "Showing the ten largest yields of %s item/component variants; barrel output includes all variants that fit");
     public static final Msg LOOT_RESOURCE_BUDGET = msg("loot.resource_budget", "more than 64 referenced resources");
@@ -45,7 +45,7 @@ public final class Messages {
 
     public static final Msg RUN_STARTED = msg("run.started", "Run #%s started: %s. %s jobs queued, estimated %s at the current job interval");
     public static final Msg RUN_UNLOADED = msg("run.unloaded_chunks", "%s of %s chunks are not currently loaded and will be loaded one at a time");
-    public static final Msg RUN_REFUSED = msg("run.refused", "%s is already running a %s (%s%% done, %s of %s jobs). Wait for it or use /ma cancel");
+    public static final Msg RUN_REFUSED = msg("run.refused", "%s is already running a %s (%s%% done, %s of %s jobs). Wait for it or use /mpa cancel");
     public static final Msg RUN_PROGRESS = msg("run.progress", "Run #%s: %s%% (%s of %s jobs)");
     public static final Msg RUN_FINISHED = msg("run.finished", "Run #%s finished in %s");
     public static final Msg RUN_FAILED = msg("run.failed", "Run #%s failed after %s of %s jobs: %s. Remaining jobs discarded, see the server log");
@@ -160,6 +160,21 @@ public final class Messages {
 
     public static final Msg UNCRAFT_DONE = msg("uncraft.done", "%s items with no known source across %s mods, %s creative-only");
     public static final Msg UNCRAFT_START = msg("uncraft.start", "Indexing recipes, %s loot tables, villager trades and creative tabs");
+
+    public static final Msg GRAB_POS1 = msg("grab.pos1", "First corner set to %s %s %s");
+    public static final Msg GRAB_POS2 = msg("grab.pos2", "Second corner set to %s %s %s");
+    public static final Msg GRAB_REGION = msg("grab.region", "Selection is %s by %s by %s (%s blocks)");
+    public static final Msg GRAB_CLEARED = msg("grab.cleared", "Selection cleared");
+    public static final Msg GRAB_NO_SELECTION = msg("grab.no_selection", "No selection; set both corners with pos1 and pos2 first");
+    public static final Msg GRAB_WRONG_DIMENSION = msg("grab.wrong_dimension", "The selection was made in %s; go back there or set new corners");
+    public static final Msg GRAB_OUT_OF_BOUNDS = msg("grab.out_of_bounds", "The region lies entirely outside this dimension, which builds between Y %s and Y %s");
+    public static final Msg GRAB_CLAMPED = msg("grab.clamped", "The region was clamped to the dimension build height, Y %s to Y %s");
+    public static final Msg GRAB_TOO_LARGE = msg("grab.too_large", "%s blocks is above the configured maximum of %s. Raise %s in the config to allow it");
+    public static final Msg GRAB_START = msg("grab.start", "Grabbing %s by %s by %s (%s blocks) across %s chunks as %s");
+    public static final Msg GRAB_EMPTY = msg("grab.empty", "The region held nothing to save; no file was written");
+    public static final Msg GRAB_DONE = msg("grab.done", "Grabbed %s by %s by %s: %s blocks, %s distinct states, %s block entities, %s entities");
+    public static final Msg GRAB_WRITTEN = msg("grab.written", "Structure written to %s");
+    public static final Msg GRAB_FAILED = msg("grab.failed", "Could not write structure %s: %s");
 
     public static final Msg PERCENT_LINE = msg("line.percent", "%s%% %s");
     public static final Msg SPAWNS_LINE = msg("spawns.line", "%s: %s spawned in %s attempts");

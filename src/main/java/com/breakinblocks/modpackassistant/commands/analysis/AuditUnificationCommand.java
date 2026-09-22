@@ -32,7 +32,7 @@ public final class AuditUnificationCommand {
 
     private static int audit(CommandSourceStack source, @Nullable String namespace) {
         UnificationAuditor auditor = new UnificationAuditor(namespace);
-        ReportWriter.Context context = new ReportWriter.Context(source, "/ma auditUnification" + (namespace == null ? "" : " " + namespace))
+        ReportWriter.Context context = new ReportWriter.Context(source, "/mpa auditUnification" + (namespace == null ? "" : " " + namespace))
                 .note("namespace_filter", namespace == null ? "c, forge" : namespace);
 
         Run run = new Run(source, "unification audit", source.getLevel().dimension());

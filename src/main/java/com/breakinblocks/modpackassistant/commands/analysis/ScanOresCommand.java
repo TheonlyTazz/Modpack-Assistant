@@ -81,7 +81,7 @@ public final class ScanOresCommand {
         }
 
         OreScan scan = new OreScan(minY, maxY);
-        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/ma scanOres " + radius + " " + minY + " " + maxY)
+        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/mpa scanOres " + radius + " " + minY + " " + maxY)
                 .note("chunk_span", region.span() + "x" + region.span())
                 .note("height_band", minY + " to " + maxY)
                 .note("clamped_to_dimension", clamped);

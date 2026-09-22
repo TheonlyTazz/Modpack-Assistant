@@ -31,7 +31,7 @@ public final class FindUncraftablesCommand {
 
     private static int find(CommandSourceStack source, @Nullable String namespace) {
         ObtainabilityIndex index = new ObtainabilityIndex(source.getLevel());
-        ReportWriter.Context context = new ReportWriter.Context(source, "/ma findUncraftables" + (namespace == null ? "" : " " + namespace))
+        ReportWriter.Context context = new ReportWriter.Context(source, "/mpa findUncraftables" + (namespace == null ? "" : " " + namespace))
                 .note("namespace_filter", namespace == null ? "all" : namespace);
 
         Run run = new Run(source, "uncraftable item report", source.getLevel().dimension());

@@ -1,5 +1,6 @@
 package com.breakinblocks.modpackassistant.config;
 
+import com.breakinblocks.modpackassistant.grab.GrabFormat;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 public final class MAConfig {
@@ -12,11 +13,16 @@ public final class MAConfig {
     public static final ModConfigSpec.IntValue MAX_STRUCTURE_LOOT_CHESTS;
     public static final ModConfigSpec.IntValue MAX_MINING_DROP_VARIANTS;
     public static final ModConfigSpec.IntValue MAX_DRAIN_BLOCKS;
+    public static final ModConfigSpec.IntValue MAX_GRAB_BLOCKS;
     public static final ModConfigSpec.IntValue MAX_LOOT_ITERATIONS;
     public static final ModConfigSpec.IntValue MAX_SIMULATED_TICKS;
     public static final ModConfigSpec.IntValue MAX_BIOME_SAMPLES;
     public static final ModConfigSpec.IntValue MAX_BIOME_SAMPLE_RADIUS;
     public static final ModConfigSpec.ConfigValue<String> REPORT_DIRECTORY;
+    public static final ModConfigSpec.ConfigValue<String> STRUCTURE_DIRECTORY;
+    public static final ModConfigSpec.BooleanValue GRAB_ENTITIES;
+    public static final ModConfigSpec.BooleanValue GRAB_IGNORE_AIR;
+    public static final ModConfigSpec.EnumValue<GrabFormat> GRAB_FORMAT;
     public static final ModConfigSpec.IntValue JOB_INTERVAL_TICKS;
 
     static {
@@ -38,6 +44,9 @@ public final class MAConfig {
         MAX_DRAIN_BLOCKS = builder
                 .comment("Largest number of fluid blocks a single drain may remove.")
                 .defineInRange("max_drain_blocks", 250_000, 1, 4_000_000);
+        MAX_GRAB_BLOCKS = builder
+                .comment("Largest region a structure grab may capture, counted in blocks. Every captured block is held in memory until the file is written.")
+                .defineInRange("max_grab_blocks", 262_144, 1, 4_194_304);
         MAX_LOCATE_RESULTS = builder.comment("Maximum retained block-search hits; additional matches are counted but not retained.")
                 .defineInRange("max_locate_results", 10_000, 10, 100_000);
         MAX_STRUCTURE_LOOT_CHESTS = builder.comment("Maximum chest/sign pairs placed by one structure loot test.")
@@ -62,6 +71,21 @@ public final class MAConfig {
         REPORT_DIRECTORY = builder
                 .comment("Report output directory, relative to the game directory.")
                 .define("report_directory", "logs/modpackassistant");
+        builder.pop();
+
+        builder.push("structures");
+        STRUCTURE_DIRECTORY = builder
+                .comment("Structure grab output directory, relative to the game directory.")
+                .define("structure_directory", "modpackassistant/structures");
+        GRAB_ENTITIES = builder
+                .comment("Save the entities standing in the region alongside its blocks. Players are never saved.")
+                .define("grab_entities", false);
+        GRAB_IGNORE_AIR = builder
+                .comment("Leave air out of the saved structure, so placing it does not clear what is already there. Structure voids are always left out.")
+                .define("grab_ignore_air", false);
+        GRAB_FORMAT = builder
+                .comment("What a grab writes: BOTH, NBT or SNBT. NBT is the binary file datapacks and structure blocks load; SNBT is the same data as readable text. The format argument overrides this per grab.")
+                .defineEnum("grab_format", GrabFormat.BOTH);
         builder.pop();
 
         builder.push("scheduler");
@@ -90,6 +114,10 @@ public final class MAConfig {
 
     public static int maxDrainBlocks() {
         return MAX_DRAIN_BLOCKS.get();
+    }
+
+    public static int maxGrabBlocks() {
+        return MAX_GRAB_BLOCKS.get();
     }
 
     public static int maxLocateResults() {
@@ -122,6 +150,22 @@ public final class MAConfig {
 
     public static String reportDirectory() {
         return REPORT_DIRECTORY.get();
+    }
+
+    public static String structureDirectory() {
+        return STRUCTURE_DIRECTORY.get();
+    }
+
+    public static boolean grabEntities() {
+        return GRAB_ENTITIES.get();
+    }
+
+    public static boolean grabIgnoreAir() {
+        return GRAB_IGNORE_AIR.get();
+    }
+
+    public static GrabFormat grabFormat() {
+        return GRAB_FORMAT.get();
     }
 
     public static int jobIntervalTicks() {

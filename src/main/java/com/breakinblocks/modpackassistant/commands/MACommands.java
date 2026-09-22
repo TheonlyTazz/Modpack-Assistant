@@ -27,6 +27,7 @@ import com.breakinblocks.modpackassistant.commands.world.ClearCommand;
 import com.breakinblocks.modpackassistant.commands.world.DrainCommand;
 import com.breakinblocks.modpackassistant.commands.world.KillCommand;
 import com.breakinblocks.modpackassistant.commands.world.MineAreaCommand;
+import com.breakinblocks.modpackassistant.commands.world.StructureGrabCommand;
 import com.breakinblocks.modpackassistant.commands.world.TestStructureLootCommand;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -45,7 +46,7 @@ import java.util.function.Function;
 @EventBusSubscriber(modid = ModpackAssistant.MOD_ID)
 public final class MACommands {
     public static final String ROOT = "modpackassistant";
-    public static final String ALIAS = "ma";
+    public static final String ALIAS = "mpa";
 
     private static final List<Function<CommandBuildContext, LiteralArgumentBuilder<CommandSourceStack>>> SUBCOMMANDS = List.of(
             context -> DevEnvCommand.build(),
@@ -67,6 +68,7 @@ public final class MACommands {
             context -> DrainCommand.build(),
             KillCommand::build,
             context -> MineAreaCommand.build(),
+            context -> StructureGrabCommand.build(),
             TestStructureLootCommand::build,
             context -> SimulateLootCommand.build(),
             SimulateSpawnsCommand::build,

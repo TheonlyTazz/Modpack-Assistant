@@ -60,7 +60,7 @@ public final class LocateBlockCommand {
 
         String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
         BlockLocator locator = new BlockLocator(block, source.getPosition());
-        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/ma locateBlock " + blockId + " " + radius)
+        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/mpa locateBlock " + blockId + " " + radius)
                 .note("block", blockId)
                 .note("chunk_span", region.span() + "x" + region.span())
                 .note("origin", BlockPos.containing(source.getPosition()).toShortString());

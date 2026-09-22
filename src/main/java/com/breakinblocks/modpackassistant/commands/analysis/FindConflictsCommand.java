@@ -42,7 +42,7 @@ public final class FindConflictsCommand {
         RecipeConflictFinder finder = new RecipeConflictFinder(source.getLevel());
         var recipes = source.getServer().getRecipeManager().getRecipes().iterator();
         RecipeType<?> selectedType = filter;
-        ReportWriter.Context context = new ReportWriter.Context(source, "/ma findConflicts" + (typeId == null ? "" : " " + typeId));
+        ReportWriter.Context context = new ReportWriter.Context(source, "/mpa findConflicts" + (typeId == null ? "" : " " + typeId));
 
         Run run = new Run(source, "recipe conflict scan", source.getLevel().dimension());
         run.repeat(() -> {

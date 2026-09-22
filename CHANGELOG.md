@@ -1,5 +1,17 @@
 # Changelog
 
+## 26.1.2-1.0.4
+
+### Added
+
+- `/mpa structureGrab <from> <to> [name]` saves a region of the world as a structure file, taking
+  its corners the way `/fill` does, or from `pos1`/`pos2` corners set while walking a build.
+  Writes both `.nbt` and `.snbt` into `modpackassistant/structures/`.
+
+### Changed
+
+- The short command alias is now `/mpa` instead of `/ma`, which clashed with Mystical Agriculture.
+
 ## 26.1.2-1.0.3
 
 ### Fixed
