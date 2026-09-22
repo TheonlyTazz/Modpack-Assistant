@@ -25,6 +25,7 @@ run/
 run-data/
 run-server/
 run-gametest/
+run-gametest-*/
 run-client.log
 
 # Generated resources cache

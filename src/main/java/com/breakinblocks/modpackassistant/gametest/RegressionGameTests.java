@@ -69,19 +69,19 @@ public final class RegressionGameTests {
         helper.assertTrue(record.isEmpty(), "no previous test placements should remain");
         var source = CoreGameTests.source(CoreGameTests.fakePlayer(helper, new BlockPos(2, 1, 12)));
         AtomicInteger before = new AtomicInteger();
-        CoreGameTests.run(helper, source, "ma testStructureLoot minecraft:village_plains 16");
+        CoreGameTests.run(helper, source, "mpa testStructureLoot minecraft:village_plains 16");
         helper.startSequence()
                 .thenWaitUntil(() -> helper.assertTrue(record.positions().size() >= 4, "waiting for two chest/sign pairs"))
                 .thenExecute(() -> {
                     helper.assertTrue(RunScheduler.cancel(source), "placement should be cancellable");
                     before.set(record.positions().size());
-                    CoreGameTests.run(helper, source, "ma testStructureLoot clear");
+                    CoreGameTests.run(helper, source, "mpa testStructureLoot clear");
                 })
                 .thenIdle(6)
                 .thenExecute(() -> {
                     helper.assertTrue(RunScheduler.cancel(source), "cleanup should be cancellable");
                     helper.assertTrue(!record.isEmpty() && record.positions().size() < before.get(), "remaining cleanup records must survive cancellation");
-                    CoreGameTests.run(helper, source, "ma testStructureLoot clear");
+                    CoreGameTests.run(helper, source, "mpa testStructureLoot clear");
                 })
                 .thenWaitUntil(() -> helper.assertFalse(RunScheduler.isBusy(), "waiting for resumed cleanup"))
                 .thenExecute(() -> helper.assertTrue(record.isEmpty(), "resumed cleanup should consume all records"))
@@ -144,7 +144,7 @@ public final class RegressionGameTests {
         helper.assertFalse(RunScheduler.isBusy(), "scheduler should be idle");
         var dispatcher = helper.getLevel().getServer().getCommands().getDispatcher();
         CommandSourceStack source = CoreGameTests.source(CoreGameTests.fakePlayer(helper, new BlockPos(8, 1, 8)));
-        for (String root : List.of("ma", "modpackassistant")) {
+        for (String root : List.of("mpa", "modpackassistant")) {
             for (String name : List.of("findconflicts", "finduncraftables", "auditunification")) {
                 helper.assertTrue(dispatcher.execute(root + " " + name, source) > 0, "argument-free alias should execute: " + name);
                 helper.assertTrue(RunScheduler.cancel(source), "alias should have started a cancellable run");
@@ -163,7 +163,7 @@ public final class RegressionGameTests {
         helper.assertTrue(root.getChild("kill").getChild("type") != null, "kill argument should survive vanilla filtering");
         helper.assertTrue(root.getChild("exportTags").getChild("registry").getChild("format") != null, "export arguments should survive");
         helper.assertTrue(root.getChild("clear").getChild("radius").getChild("keep").getChild("keep") != null, "keep argument should survive");
-        var suggestions = dispatcher.getCompletionSuggestions(dispatcher.parse("ma kill ", source)).join().getList();
+        var suggestions = dispatcher.getCompletionSuggestions(dispatcher.parse("mpa kill ", source)).join().getList();
         helper.assertTrue(suggestions.stream().anyMatch(suggestion -> suggestion.getText().equals("monsters")), "enum suggestions should remain available");
         var contents = (TranslatableContents) Messages.HEAL_DONE.get("Example").getContents();
         helper.assertTrue(contents.getFallback() != null && Messages.HEAL_DONE.get("Example").getString().contains("Example"), "vanilla fallback must include arguments");
@@ -252,7 +252,7 @@ public final class RegressionGameTests {
         ItemStack stack = new ItemStack(Items.DIAMOND);
         stack.set(DataComponents.CUSTOM_NAME, Component.literal("x".repeat(SetClipboardPayload.MAX_TEXT_LENGTH)));
         player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
-        int result = helper.getLevel().getServer().getCommands().getDispatcher().execute("ma copy hand", CoreGameTests.source(player));
+        int result = helper.getLevel().getServer().getCommands().getDispatcher().execute("mpa copy hand", CoreGameTests.source(player));
         helper.assertTrue(result == 0, "oversized clipboard command must report failure");
         player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         helper.succeed();
@@ -332,8 +332,8 @@ public final class RegressionGameTests {
         }
         CommandSourceStack source = CoreGameTests.source(CoreGameTests.fakePlayer(helper, new BlockPos(8, 1, 8)));
         var dispatcher = helper.getLevel().getServer().getCommands().getDispatcher();
-        helper.assertTrue(dispatcher.execute("ma kill by minecraft:creeper", source) > 0, "kill run should start");
-        helper.assertTrue(dispatcher.execute("ma kill items", source) == 0, "overlapping run should be refused");
+        helper.assertTrue(dispatcher.execute("mpa kill by minecraft:creeper", source) > 0, "kill run should start");
+        helper.assertTrue(dispatcher.execute("mpa kill items", source) == 0, "overlapping run should be refused");
         helper.runAfterDelay(6, () -> {
             long removed = entities.stream().filter(Creeper::isRemoved).count();
             helper.assertTrue(removed > 0 && removed <= 128, "one batch must remove at most 128 entities");

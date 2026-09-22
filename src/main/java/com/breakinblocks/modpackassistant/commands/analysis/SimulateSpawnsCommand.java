@@ -89,7 +89,7 @@ public final class SimulateSpawnsCommand {
 
         Vec3 virtualPlayer = sameDimension ? player.position() : Vec3.atCenterOf(anchor);
         SpawnSimulator simulator = new SpawnSimulator(level, biome, matching, virtualPlayer, ticks);
-        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/ma simulateSpawns " + biomeId + " " + level.dimension().location() + " " + ticks)
+        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/mpa simulateSpawns " + biomeId + " " + level.dimension().location() + " " + ticks)
                 .note("biome", biomeId)
                 .note("target_dimension", level.dimension().location())
                 .note("sampled_chunks", matching.size())

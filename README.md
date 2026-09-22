@@ -5,8 +5,8 @@ World inspection, region editing, loot and spawn simulation, recipe and tag audi
 admin conveniences. No blocks, items, or GUIs. Vanilla clients work with every feature except
 automatic clipboard copying, which falls back to click-to-copy chat.
 
-Every command is available as `/modpackassistant ...` or `/ma ...`. Camel-case names also accept
-their lowercase spelling (`/ma scanores` works the same as `/ma scanOres`).
+Every command is available as `/modpackassistant ...` or `/mpa ...`. Camel-case names also accept
+their lowercase spelling (`/mpa scanores` works the same as `/mpa scanOres`).
 
 ## Commands
 
@@ -15,18 +15,18 @@ Admin and player (permission level 2 unless noted):
 | Command | Purpose |
 |---|---|
 | `/toggledownfall` | Flip overworld weather between clear and rain |
-| `/ma devenv <true/false>` | Freeze or restore daylight, weather and mob spawning |
-| `/ma opsword` | Give a netherite sword enchanted to level 255 |
-| `/ma enchant add <enchantment> <0-255>` | Enchant the held item past normal limits |
-| `/ma enchant remove <enchantment>` | Strip one enchantment from the held item |
-| `/ma repair [player]` | Repair the held item |
-| `/ma heal [player]`, `/ma feed [player]` | Restore health and hunger |
-| `/ma god [player]` | Toggle invulnerability |
-| `/ma nightvision` | Toggle permanent night vision |
-| `/ma tpd <dimension> [targets]` | Move entities to another dimension safely |
-| `/ma print <source>`, `/ma hand`, `/ma copy <source> [format]` | Item data to chat or clipboard (permission configurable) |
+| `/mpa devenv <true/false>` | Freeze or restore daylight, weather and mob spawning |
+| `/mpa opsword` | Give a netherite sword enchanted to level 255 |
+| `/mpa enchant add <enchantment> <0-255>` | Enchant the held item past normal limits |
+| `/mpa enchant remove <enchantment>` | Strip one enchantment from the held item |
+| `/mpa repair [player]` | Repair the held item |
+| `/mpa heal [player]`, `/mpa feed [player]` | Restore health and hunger |
+| `/mpa god [player]` | Toggle invulnerability |
+| `/mpa nightvision` | Toggle permanent night vision |
+| `/mpa tpd <dimension> [targets]` | Move entities to another dimension safely |
+| `/mpa print <source>`, `/mpa hand`, `/mpa copy <source> [format]` | Item data to chat or clipboard (permission configurable) |
 
-Plain-text copies (the default for `/ma copy inventory` and other copy sources) leave out the quantity
+Plain-text copies (the default for `/mpa copy inventory` and other copy sources) leave out the quantity
 for single items, for example `minecraft:stone`. Larger stacks retain it, for example
 `2 minecraft:dirt`.
 
@@ -42,29 +42,31 @@ World editing:
 
 | Command | Purpose |
 |---|---|
-| `/ma clear <radius> [keep <ores/ores_and_modded/nothing> / remove <predicate>] [protect_bedrock]` | Mass-delete blocks across a chunk region |
-| `/ma drain [location] <radius>` | Flood-fill remove a connected body of fluid |
-| `/ma kill <type>`, `/ma kill by <entity>` | Bulk entity removal |
-| `/ma minearea <radius> [harvest]` | Simulate mining every ore in a region and bank the drops in barrels |
-| `/ma testStructureLoot <structure> [samples]`, `... clear` | Chests of generated loot per structure loot table, with signs |
-| `/ma cancel` | Abort the active long-running operation |
+| `/mpa clear <radius> [keep <ores/ores_and_modded/nothing> / remove <predicate>] [protect_bedrock]` | Mass-delete blocks across a chunk region |
+| `/mpa drain [location] <radius>` | Flood-fill remove a connected body of fluid |
+| `/mpa kill <type>`, `/mpa kill by <entity>` | Bulk entity removal |
+| `/mpa minearea <radius> [harvest]` | Simulate mining every ore in a region and bank the drops in barrels |
+| `/mpa testStructureLoot <structure> [samples]`, `... clear` | Chests of generated loot per structure loot table, with signs |
+| `/mpa structureGrab <from> <to> [name] [both/nbt/snbt]` | Save a region of the world as a structure file |
+| `/mpa structureGrab pos1 [pos]`, `pos2 [pos]`, `grab [name] [format]`, `clear` | Set the corners one at a time, then grab them |
+| `/mpa cancel` | Abort the active long-running operation |
 
 Analysis and reports, all read-only, each writing a file under `logs/modpackassistant/`:
 
 | Command | Purpose |
 |---|---|
-| `/ma scanOres <chunk_radius> [min_y] [max_y]` | Ore distribution by block and by height |
-| `/ma locateBlock <block> <chunk_radius>` | Count matching blocks and report the nearest retained matches, with click-to-teleport coordinates |
-| `/ma simulateLoot <iterations> <loot_table> [luck]` | Drop statistics for a loot table |
-| `/ma simulateSpawns <biome> <dimension> <ticks>` | Estimated natural spawning without placing entities |
-| `/ma findConflicts [type]` | Recipes that consume the same inputs |
-| `/ma findUncraftables [namespace]` | Items with no recipe, loot table, or trade source |
-| `/ma auditUnification [namespace]` | Material tags holding several items, or none |
-| `/ma exportTags <item/block/entity/fluid> [json/csv]` | Every registered object with its tags |
-| `/ma mapBiomes <radius> [interval] [y]` | Biome coverage over an area, without loading chunks |
+| `/mpa scanOres <chunk_radius> [min_y] [max_y]` | Ore distribution by block and by height |
+| `/mpa locateBlock <block> <chunk_radius>` | Count matching blocks and report the nearest retained matches, with click-to-teleport coordinates |
+| `/mpa simulateLoot <iterations> <loot_table> [luck]` | Drop statistics for a loot table |
+| `/mpa simulateSpawns <biome> <dimension> <ticks>` | Estimated natural spawning without placing entities |
+| `/mpa findConflicts [type]` | Recipes that consume the same inputs |
+| `/mpa findUncraftables [namespace]` | Items with no recipe, loot table, or trade source |
+| `/mpa auditUnification [namespace]` | Material tags holding several items, or none |
+| `/mpa exportTags <item/block/entity/fluid> [json/csv]` | Every registered object with its tags |
+| `/mpa mapBiomes <radius> [interval] [y]` | Biome coverage over an area, without loading chunks |
 
 Long-running operations run as jobs on the server tick, one every few ticks, and only one at a
-time. They report progress and can be stopped with `/ma cancel`.
+time. They report progress and can be stopped with `/mpa cancel`.
 
 Region radii are measured in chunks: `0` scans one chunk, and `n` covers `(2n + 1)` chunks per
 side. Ore scans, block searches, and mining simulations only inspect chunks loaded when their
@@ -103,14 +105,37 @@ pair per placement job. They attempt at most `max_structure_loot_chests` positio
 Resolution is capped at 16 times the chest budget (up to 4,096 pools/templates), the chest
 budget's number of loot tables, and `max_drain_blocks` blocks per template. Unsupported loot
 tables are skipped, and global loot modifiers are not evaluated. Partial placements are
-recorded immediately, so `/ma testStructureLoot clear` can remove them after cancellation or
+recorded immediately, so `/mpa testStructureLoot clear` can remove them after cancellation or
 failure. Cleanup also runs in cancellable batches; changed blocks other than chests/signs
 are left alone.
+
+`structureGrab` takes the two corners `/fill` takes, absolute or `~` relative, and writes the
+region between them to `modpackassistant/structures/` in the game directory, named after the time
+when no name is given. By default it writes the same structure twice under one base name: `<name>.nbt`,
+the binary file that datapacks (`data/<namespace>/structure/`) and structure blocks load, and
+`<name>.snbt`, the readable text form that NBT editors and VS Code plugins open. Pass `nbt` or `snbt`
+to write only one. An existing file is never overwritten; a numbered suffix is added to the base name
+instead, so the pair always stays together.
+
+The grab reads the world the server is running, so chest, machine, and sign contents are complete.
+Corners can be set one at a time while walking a build with `pos1` and `pos2`; each player keeps
+their own selection, which resets when they change dimension and is dropped when they log out.
+Regions are captured one chunk column per job, and chunks that are not loaded are loaded for that
+job and released afterwards. Regions taller than the dimension are clamped to its build height and
+the clamp is reported. `max_grab_blocks` (default 262,144) caps the region volume, since every
+captured block is held in memory until the file is written.
+
+Structure voids are always left out, so they read as untouched positions when the structure is
+placed. `grab_ignore_air` additionally leaves out air, including cave and void air, so placing the
+result does not clear what is already there. `grab_entities` saves the entities standing in the
+region; players are never saved. Blocks are written in vanilla's order, full blocks first and block
+entities last, so placement behaves the same as a structure saved by a structure block.
 
 ## Configuration
 
 `config/modpackassistant-common.toml` holds the permission level for item inspection, the radius,
-iteration, and block caps for each expensive command, the report directory, and the job interval.
+iteration, and block caps for each expensive command, the report and structure directories, the
+structure grab defaults, and the job interval.
 
 ## License
 

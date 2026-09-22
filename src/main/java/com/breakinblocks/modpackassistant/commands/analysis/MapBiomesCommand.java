@@ -60,7 +60,7 @@ public final class MapBiomesCommand {
             return CommandResults.fail(source, Messages.BIOMES_TOO_MANY.get(expected, budget, Math.max(MIN_INTERVAL, suggested)));
         }
 
-        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/ma mapBiomes " + radius + " " + interval + " " + y)
+        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/mpa mapBiomes " + radius + " " + interval + " " + y)
                 .note("center", player.blockPosition().toShortString())
                 .note("radius", radius)
                 .note("interval", interval)

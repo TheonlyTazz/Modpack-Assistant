@@ -70,7 +70,7 @@ public final class SimulateLootCommand {
         }
 
         LootSimulator simulator = new LootSimulator(table, built.params(), source.registryAccess(), iterations);
-        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/ma simulateLoot " + iterations + " " + tableId + " " + luck)
+        ReportWriter.Context reportContext = new ReportWriter.Context(source, "/mpa simulateLoot " + iterations + " " + tableId + " " + luck)
                 .note("loot_table", tableId)
                 .note("iterations", iterations)
                 .note("luck", luck)
