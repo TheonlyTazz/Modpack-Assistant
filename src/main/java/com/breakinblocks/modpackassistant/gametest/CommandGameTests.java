@@ -7,8 +7,11 @@ import com.breakinblocks.modpackassistant.grab.GrabFiles;
 import com.breakinblocks.modpackassistant.grab.GrabFormat;
 import com.breakinblocks.modpackassistant.jobs.RunScheduler;
 import com.breakinblocks.modpackassistant.report.ReportWriter;
+import com.breakinblocks.modpackassistant.showoff.ShowoffTemplateFiles;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -29,6 +32,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -218,6 +222,79 @@ public final class CommandGameTests {
             helper.assertFalse(RunScheduler.isBusy(), "no run should have started for an out-of-range radius");
             helper.succeed();
         });
+    }
+
+    @GameTest(batch = "command_showoffRefuses", template = EMPTY, timeoutTicks = 100)
+    public static void showoffRefusesPlayersWithoutTheClientMod(GameTestHelper helper) {
+        requireIdle(helper);
+        var dispatcher = helper.getLevel().getServer().getCommands().getDispatcher();
+        CommandSourceStack source = sourceAt(helper, new BlockPos(8, 1, 8));
+        List<String> commands = List.of(
+                "mpa showoff structure minecraft:igloo/top",
+                "mpa showoff structure modpackassistant:missing",
+                "mpa showoff file my_house",
+                "mpa showoff file \"Castle Big.nbt\"",
+                "mpa showoff entity minecraft:zombie {IsBaby:1b}",
+                "mpa showoff entity minecraft:player",
+                "mpa showoff angle 30 20",
+                "mpa showoff zoom 2",
+                "mpa showoff pan 0.1 -0.1",
+                "mpa showoff reset",
+                "mpa showoff background dark_aqua",
+                "mpa showoff background hex 00FF00",
+                "mpa showoff background hex nothex",
+                "mpa showoff background transparent",
+                "mpa showoff screenshot",
+                "mpa showoff screenshot test 512 256",
+                "mpa showoff close");
+        for (String command : commands) {
+            var parse = dispatcher.parse(command, source);
+            helper.assertTrue(parse.getExceptions().isEmpty() && !parse.getReader().canRead(), "should parse: " + command);
+            int result;
+            try {
+                result = dispatcher.execute(parse);
+            } catch (CommandSyntaxException e) {
+                throw new IllegalStateException(command + " threw " + e.getMessage(), e);
+            }
+            helper.assertTrue(result == 0, "should fail for a player without the client mod: " + command);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(batch = "command_showoffFile", template = EMPTY, timeoutTicks = 100)
+    public static void showoffFileReadsGrabbedStructures(GameTestHelper helper) {
+        requireIdle(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), Blocks.STONE);
+        helper.setBlock(new BlockPos(2, 1, 1), Blocks.OAK_PLANKS);
+        StructureTemplate template = new StructureTemplate();
+        template.fillFromWorld(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)), new Vec3i(2, 1, 1), false, null);
+        CompoundTag structure = template.save(new CompoundTag());
+
+        Path directory = GrabFiles.directory().toAbsolutePath().normalize();
+        String name = "showoff-gametest-" + System.nanoTime();
+        Path nbt = directory.resolve(name + GrabFormat.NBT_EXTENSION);
+        Path snbt = directory.resolve(name + GrabFormat.SNBT_EXTENSION);
+        try {
+            Files.createDirectories(directory);
+            GrabFiles.writeNbt(nbt, structure);
+            GrabFiles.writeSnbt(snbt, structure);
+            helper.assertTrue(ShowoffTemplateFiles.list().contains(name), "the grab folder listing should include " + name);
+            helper.assertTrue(nbt.equals(ShowoffTemplateFiles.resolve(name)), "a bare name should resolve to the .nbt file");
+            helper.assertTrue(snbt.equals(ShowoffTemplateFiles.resolve(name + GrabFormat.SNBT_EXTENSION)), "an explicit .snbt name should resolve to it");
+            helper.assertTrue(ShowoffTemplateFiles.resolve("../" + name) == null, "names must not leave the grab folder");
+            helper.assertTrue(ShowoffTemplateFiles.resolve(name + "-missing") == null, "a missing file should not resolve");
+            for (Path file : List.of(nbt, snbt)) {
+                CompoundTag read = ShowoffTemplateFiles.read(file, helper.getLevel().getServer());
+                helper.assertTrue(read.getList("blocks", Tag.TAG_COMPOUND).size() == 2, file.getFileName() + " should hold two blocks");
+            }
+            helper.assertTrue(ShowoffTemplateFiles.id(nbt).getPath().equals(name), "the preview id should be the file's base name");
+        } catch (IOException | CommandSyntaxException e) {
+            throw new IllegalStateException("could not write or read the test structure files", e);
+        } finally {
+            discard(nbt);
+            discard(snbt);
+        }
+        helper.succeed();
     }
 
     @GameTest(batch = "command_alias", template = EMPTY, timeoutTicks = 100)

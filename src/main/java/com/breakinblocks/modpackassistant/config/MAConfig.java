@@ -23,6 +23,8 @@ public final class MAConfig {
     public static final ModConfigSpec.BooleanValue GRAB_ENTITIES;
     public static final ModConfigSpec.BooleanValue GRAB_IGNORE_AIR;
     public static final ModConfigSpec.EnumValue<GrabFormat> GRAB_FORMAT;
+    public static final ModConfigSpec.IntValue MAX_SHOWOFF_BLOCKS;
+    public static final ModConfigSpec.ConfigValue<String> SHOWOFF_DIRECTORY;
     public static final ModConfigSpec.IntValue JOB_INTERVAL_TICKS;
 
     static {
@@ -86,6 +88,15 @@ public final class MAConfig {
         GRAB_FORMAT = builder
                 .comment("What a grab writes: BOTH, NBT or SNBT. NBT is the binary file datapacks and structure blocks load; SNBT is the same data as readable text. The format argument overrides this per grab.")
                 .defineEnum("grab_format", GrabFormat.BOTH);
+        builder.pop();
+
+        builder.push("showoff");
+        MAX_SHOWOFF_BLOCKS = builder
+                .comment("Largest structure template the showoff preview will send to a client, counted in non-air blocks.")
+                .defineInRange("max_showoff_blocks", 262_144, 1, 4_194_304);
+        SHOWOFF_DIRECTORY = builder
+                .comment("Showoff screenshot output directory on the client, relative to the game directory.")
+                .define("showoff_directory", "modpackassistant/showoff");
         builder.pop();
 
         builder.push("scheduler");
@@ -166,6 +177,14 @@ public final class MAConfig {
 
     public static GrabFormat grabFormat() {
         return GRAB_FORMAT.get();
+    }
+
+    public static int maxShowoffBlocks() {
+        return MAX_SHOWOFF_BLOCKS.get();
+    }
+
+    public static String showoffDirectory() {
+        return SHOWOFF_DIRECTORY.get();
     }
 
     public static int jobIntervalTicks() {

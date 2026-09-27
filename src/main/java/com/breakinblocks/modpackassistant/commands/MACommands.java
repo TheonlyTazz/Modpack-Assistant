@@ -22,6 +22,7 @@ import com.breakinblocks.modpackassistant.commands.analysis.MapBiomesCommand;
 import com.breakinblocks.modpackassistant.commands.analysis.ScanOresCommand;
 import com.breakinblocks.modpackassistant.commands.analysis.SimulateLootCommand;
 import com.breakinblocks.modpackassistant.commands.analysis.SimulateSpawnsCommand;
+import com.breakinblocks.modpackassistant.commands.showoff.ShowoffCommand;
 import com.breakinblocks.modpackassistant.commands.world.CancelCommand;
 import com.breakinblocks.modpackassistant.commands.world.ClearCommand;
 import com.breakinblocks.modpackassistant.commands.world.DrainCommand;
@@ -70,6 +71,7 @@ public final class MACommands {
             context -> MineAreaCommand.build(),
             context -> StructureGrabCommand.build(),
             TestStructureLootCommand::build,
+            ShowoffCommand::build,
             context -> SimulateLootCommand.build(),
             SimulateSpawnsCommand::build,
             context -> FindConflictsCommand.build(),
