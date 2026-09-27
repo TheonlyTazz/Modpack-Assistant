@@ -25,7 +25,6 @@ public final class OpswordCommand {
     public static final int LEVEL = 255;
     private static final List<ResourceKey<Enchantment>> ENCHANTMENTS = List.of(
             Enchantments.SHARPNESS,
-            Enchantments.KNOCKBACK,
             Enchantments.UNBREAKING,
             Enchantments.BANE_OF_ARTHROPODS,
             Enchantments.SMITE,

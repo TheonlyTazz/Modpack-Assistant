@@ -71,6 +71,8 @@ public final class MAGameTests {
         register(event, "locate_block_lists_nearest_first_and_writes_report", CommandGameTests::locateBlockListsNearestFirstAndWritesReport, 200);
         register(event, "radius_above_limit_is_refused", CommandGameTests::radiusAboveLimitIsRefused, 100);
         register(event, "alias_and_lowercase_literals_work", CommandGameTests::aliasAndLowercaseLiteralsWork, 100);
+        register(event, "showoff_refuses_players_without_the_client_mod", CommandGameTests::showoffRefusesPlayersWithoutTheClientMod, 100);
+        registerChecked(event, "showoff_file_reads_grabbed_structures", CommandGameTests::showoffFileReadsGrabbedStructures, 100);
         register(event, "structure_loot_places_and_clears", CommandGameTests::structureLootPlacesAndClears, 20000);
         register(event, "structure_grab_captures_block_entity_contents", CommandGameTests::structureGrabCapturesBlockEntityContents, 200);
         register(event, "structure_grab_selection_writes_both_formats", CommandGameTests::structureGrabSelectionWritesBothFormats, 200);

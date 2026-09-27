@@ -1,5 +1,26 @@
 # Changelog
 
+## 26.1.2-1.0.5
+
+### Added
+
+- `/mpa showoff structure <template>`, `/mpa showoff file <name>` and `/mpa showoff entity <entity> [nbt]`
+  open an isometric preview of a structure template, a structure file from the structure grab folder,
+  or an entity, with drag to rotate, right-drag to pan, scroll to zoom, a 16 colour or transparent
+  background, and a screenshot button that saves only the preview.
+  `angle`, `zoom`, `pan`, `reset`, `background`, `screenshot` and `close` subcommands do the same
+  from commands, so a script or MCP server can drive it through `/execute as <player>`. Needs the
+  mod on the client.
+
+### Changed
+
+- `/mpa opsword` no longer puts Knockback on the sword.
+
+### Fixed
+
+- `/mpa copy` run by a fake player, such as a mod's automation, no longer fails with an error; it
+  prints the click-to-copy text instead.
+
 ## 26.1.2-1.0.4
 
 ### Added
