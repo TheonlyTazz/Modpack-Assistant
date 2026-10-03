@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.21.1-1.0.6
+
+### Fixed
+
+- Sped up `/mpa findConflicts` on large packs.
+
 ## 1.21.1-1.0.5
 
 ### Added

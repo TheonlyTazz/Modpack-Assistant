@@ -126,7 +126,8 @@ public final class RegressionGameTests {
     public static void recipeComparisonResumesAtItsBudget(GameTestHelper helper) {
         RecipeConflictFinder finder = new RecipeConflictFinder(helper.getLevel().registryAccess());
         List<RecipeHolder<?>> recipes = new ArrayList<>();
-        for (int i = 0; i < 100; i++) recipes.add(shapeless("budget_" + i, Items.DIAMOND, Ingredient.of(Items.STONE)));
+        List<Item> others = BuiltInRegistries.ITEM.stream().filter(item -> item != Items.AIR && item != Items.STONE).limit(100).toList();
+        for (int i = 0; i < 100; i++) recipes.add(shapeless("budget_" + i, Items.DIAMOND, Ingredient.of(Items.STONE, others.get(i))));
         finder.prepare(recipes, null);
         var bucket = finder.buckets().getFirst();
         helper.assertFalse(finder.processBatch(bucket, 1), "one operation must not process a whole bucket");

@@ -18,6 +18,8 @@ import net.minecraft.world.item.crafting.RecipeType;
 import org.jetbrains.annotations.Nullable;
 
 public final class FindConflictsCommand {
+    private static final long JOB_NANOS = 20_000_000L;
+
     private FindConflictsCommand() {
     }
 
@@ -46,12 +48,20 @@ public final class FindConflictsCommand {
 
         Run run = new Run(source, "recipe conflict scan", source.getLevel().dimension());
         run.repeat(() -> {
-            for (int i = 0; i < 128 && recipes.hasNext(); i++) finder.addRecipe(recipes.next(), selectedType);
+            long deadline = System.nanoTime() + JOB_NANOS;
+            while (recipes.hasNext() && System.nanoTime() < deadline) finder.addRecipe(recipes.next(), selectedType);
             if (recipes.hasNext()) return false;
             context.note("recipe_count", finder.recipeCount()).note("bucket_count", finder.buckets().size())
                     .note("skipped_dynamic", finder.skipped().size());
             for (RecipeConflictFinder.Bucket bucket : finder.buckets()) {
-                run.repeat(() -> finder.processBatch(bucket, 128));
+                run.repeat(() -> {
+                    long batchDeadline = System.nanoTime() + JOB_NANOS;
+                    boolean done;
+                    do {
+                        done = finder.processBatch(bucket, 256);
+                    } while (!done && System.nanoTime() < batchDeadline);
+                    return done;
+                });
             }
             run.message(Messages.CONFLICTS_START.get(finder.recipeCount(), finder.buckets().size()));
             return true;
