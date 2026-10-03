@@ -3,6 +3,8 @@ package com.breakinblocks.modpackassistant.analysis;
 import com.breakinblocks.modpackassistant.ModpackAssistant;
 import com.breakinblocks.modpackassistant.report.CsvWriter;
 import com.breakinblocks.modpackassistant.report.ReportWriter;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
@@ -21,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,6 +31,7 @@ import java.util.TreeSet;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.stream.IntStream;
 
 public final class RecipeConflictFinder {
     public record Group(int id, RecipeType<?> type, List<RecipeHolder<?>> recipes, List<ItemStack> results, boolean conflict) {
@@ -49,19 +53,41 @@ public final class RecipeConflictFinder {
 
     private static final class Prepared {
         final RecipeHolder<?> holder;
-        final List<Ingredient> ingredients;
-        final List<Integer> occupied = new ArrayList<>();
-
+        final int width;
+        final int[][] slots;
+        final int[] occupied;
         final ItemStack result;
 
-        Prepared(RecipeHolder<?> holder, List<Ingredient> ingredients, ItemStack result) {
+        Prepared(RecipeHolder<?> holder, int[][] slots, ItemStack result) {
             this.holder = holder;
-            this.ingredients = ingredients;
+            this.width = holder.value() instanceof ShapedRecipe shaped ? shaped.getWidth() : -1;
+            this.slots = slots;
+            this.occupied = IntStream.range(0, slots.length).filter(i -> slots[i] != null).toArray();
             this.result = result.copy();
-            for (int i = 0; i < ingredients.size(); i++) {
-                if (ingredients.get(i) != null) occupied.add(i);
-            }
         }
+
+        @Nullable
+        Signature signature() {
+            List<IntArrayList> lists = new ArrayList<>();
+            if (width >= 0) {
+                for (int[] slot : slots) {
+                    if (slot != null && slot.length == 0) return null;
+                    lists.add(slot == null ? null : IntArrayList.wrap(slot));
+                }
+            } else {
+                int[][] sorted = new int[occupied.length][];
+                for (int i = 0; i < occupied.length; i++) {
+                    sorted[i] = slots[occupied[i]];
+                    if (sorted[i].length == 0) return null;
+                }
+                Arrays.sort(sorted, Arrays::compare);
+                for (int[] slot : sorted) lists.add(IntArrayList.wrap(slot));
+            }
+            return new Signature(width, lists);
+        }
+    }
+
+    private record Signature(int width, List<IntArrayList> slots) {
     }
 
     private static final class Members {
@@ -81,16 +107,24 @@ public final class RecipeConflictFinder {
     }
 
     private static final class Work {
-        final List<Prepared> prepared = new ArrayList<>();
         final int[] parent;
+        final int[] seen;
+        final Map<Signature, Integer> signatures = new HashMap<>();
+        final IntArrayList representatives = new IntArrayList();
+        final Int2ObjectOpenHashMap<IntArrayList> index = new Int2ObjectOpenHashMap<>();
         final Map<Integer, Members> members = new LinkedHashMap<>();
-        int left;
-        int right = 1;
+        int indexed;
+        int representative;
+        int[] anchor;
+        int anchorItem;
+        IntArrayList candidates;
+        int candidate;
         int grouped;
         Iterator<Members> output;
 
         Work(int size) {
             parent = new int[size];
+            seen = new int[size];
         }
     }
 
@@ -99,6 +133,7 @@ public final class RecipeConflictFinder {
     private final Map<String, Bucket> byKey = new HashMap<>();
     private final List<Identifier> skipped = new ArrayList<>();
     private final List<Group> groups = new ArrayList<>();
+    private final Map<Ingredient, int[]> itemIds = new IdentityHashMap<>();
     private int recipeCount;
 
     public RecipeConflictFinder(Level level) {
@@ -145,8 +180,10 @@ public final class RecipeConflictFinder {
                 skipped.add(holder.id().identifier());
                 return;
             }
-            Prepared prepared = new Prepared(holder, inputs, result);
-            String key = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType()) + "|" + prepared.occupied.size();
+            int[][] slots = new int[inputs.size()][];
+            for (int i = 0; i < slots.length; i++) slots[i] = itemIds(inputs.get(i));
+            Prepared prepared = new Prepared(holder, slots, result);
+            String key = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType()) + "|" + prepared.occupied.length;
             Bucket bucket = byKey.computeIfAbsent(key, ignored -> new Bucket(recipe.getType()));
             bucket.recipes.add(prepared);
             if (bucket.size() == 2) buckets.add(bucket);
@@ -164,25 +201,16 @@ public final class RecipeConflictFinder {
         if (budget < 1) throw new IllegalArgumentException("budget must be positive");
         if (bucket.work == null) bucket.work = new Work(bucket.size());
         Work work = bucket.work;
+        int size = bucket.size();
         for (int operation = 0; operation < budget; operation++) {
-            if (work.prepared.size() < bucket.size()) {
-                int index = work.prepared.size();
-                work.parent[index] = index;
-                work.prepared.add(bucket.recipes.get(index));
-            } else if (work.left < work.prepared.size() - 1) {
-                int a = work.left;
-                int b = work.right;
-                if (find(work.parent, a) != find(work.parent, b)
-                        && sameInputs(work.prepared.get(a), work.prepared.get(b))) {
-                    work.parent[find(work.parent, a)] = find(work.parent, b);
-                }
-                if (++work.right >= work.prepared.size()) {
-                    work.right = ++work.left + 1;
-                }
-            } else if (work.grouped < work.prepared.size()) {
+            if (work.indexed < size) {
+                indexNext(bucket, work);
+            } else if (work.representative < work.representatives.size()) {
+                compareNext(bucket, work);
+            } else if (work.grouped < size) {
                 int index = work.grouped++;
                 work.members.computeIfAbsent(find(work.parent, index), ignored -> new Members())
-                        .add(work.prepared.get(index));
+                        .add(bucket.recipes.get(index));
             } else {
                 if (work.output == null) work.output = work.members.values().iterator();
                 if (!work.output.hasNext()) return true;
@@ -195,6 +223,100 @@ public final class RecipeConflictFinder {
         return work.output != null && !work.output.hasNext();
     }
 
+    private static void indexNext(Bucket bucket, Work work) {
+        int index = work.indexed++;
+        work.parent[index] = index;
+        Prepared prepared = bucket.recipes.get(index);
+        Signature signature = prepared.signature();
+        if (signature != null) {
+            Integer existing = work.signatures.putIfAbsent(signature, index);
+            if (existing != null) {
+                work.parent[index] = existing;
+                return;
+            }
+        }
+        work.representatives.add(index);
+        for (int slot : prepared.occupied) {
+            for (int item : prepared.slots[slot]) {
+                IntArrayList list = work.index.computeIfAbsent(item, ignored -> new IntArrayList());
+                if (list.isEmpty() || list.getInt(list.size() - 1) != index) list.add(index);
+            }
+        }
+    }
+
+    private static void compareNext(Bucket bucket, Work work) {
+        int a = work.representatives.getInt(work.representative);
+        if (work.anchor == null) {
+            work.anchor = anchor(work, bucket.recipes.get(a));
+            work.anchorItem = 0;
+            work.candidates = null;
+            return;
+        }
+        if (work.candidates == null) {
+            if (work.anchorItem >= work.anchor.length) {
+                work.representative++;
+                work.anchor = null;
+                return;
+            }
+            IntArrayList list = work.index.get(work.anchor[work.anchorItem++]);
+            if (list != null) {
+                work.candidates = list;
+                work.candidate = firstAfter(list, a);
+            }
+            return;
+        }
+        if (work.candidate >= work.candidates.size()) {
+            work.candidates = null;
+            return;
+        }
+        int b = work.candidates.getInt(work.candidate++);
+        if (work.seen[b] == a + 1) return;
+        work.seen[b] = a + 1;
+        int rootA = find(work.parent, a);
+        int rootB = find(work.parent, b);
+        if (rootA != rootB && sameInputs(bucket.recipes.get(a), bucket.recipes.get(b))) {
+            work.parent[rootA] = rootB;
+        }
+    }
+
+    private static int[] anchor(Work work, Prepared prepared) {
+        int[] best = new int[0];
+        long bestCost = Long.MAX_VALUE;
+        for (int slot : prepared.occupied) {
+            long cost = 0;
+            for (int item : prepared.slots[slot]) {
+                IntArrayList list = work.index.get(item);
+                if (list != null) cost += list.size();
+            }
+            if (cost < bestCost) {
+                bestCost = cost;
+                best = prepared.slots[slot];
+            }
+        }
+        return best;
+    }
+
+    private static int firstAfter(IntArrayList list, int value) {
+        int low = 0;
+        int high = list.size();
+        while (low < high) {
+            int mid = (low + high) >>> 1;
+            if (list.getInt(mid) <= value) low = mid + 1;
+            else high = mid;
+        }
+        return low;
+    }
+
+    @Nullable
+    private int[] itemIds(@Nullable Ingredient ingredient) {
+        if (ingredient == null) return null;
+        return itemIds.computeIfAbsent(ingredient, ignored -> ingredient.items()
+                .mapToInt(item -> BuiltInRegistries.ITEM.getId(item.value()))
+                .distinct()
+                .sorted()
+                .toArray());
+    }
+
     private static int find(int[] parent, int index) {
         while (parent[index] != index) {
             parent[index] = parent[parent[index]];
@@ -204,30 +326,30 @@ public final class RecipeConflictFinder {
     }
 
     private static boolean sameInputs(Prepared a, Prepared b) {
-        if (a.occupied.size() != b.occupied.size()) return false;
-        if (a.holder.value() instanceof ShapedRecipe left && b.holder.value() instanceof ShapedRecipe right) {
-            if (left.getWidth() != right.getWidth() || left.getHeight() != right.getHeight()) return false;
-            return shapedOverlap(a, b, left.getWidth(), false) || shapedOverlap(a, b, left.getWidth(), true);
+        if (a.occupied.length != b.occupied.length) return false;
+        if (a.width >= 0 && b.width >= 0) {
+            if (a.width != b.width || a.slots.length != b.slots.length) return false;
+            return shapedOverlap(a, b, a.width, false) || shapedOverlap(a, b, a.width, true);
         }
-        int[] matched = new int[b.occupied.size()];
+        int[] matched = new int[b.occupied.length];
         Arrays.fill(matched, -1);
-        for (int i = 0; i < a.occupied.size(); i++) {
+        for (int i = 0; i < a.occupied.length; i++) {
             if (!match(a, b, i, matched, new boolean[matched.length])) return false;
         }
         return true;
     }
 
     private static boolean shapedOverlap(Prepared a, Prepared b, int width, boolean mirrored) {
-        for (int i = 0; i < a.ingredients.size(); i++) {
+        for (int i = 0; i < a.slots.length; i++) {
             int j = mirrored ? i / width * width + width - 1 - i % width : i;
-            if (!overlaps(a.ingredients.get(i), b.ingredients.get(j))) return false;
+            if (!overlaps(a.slots[i], b.slots[j])) return false;
         }
         return true;
     }
 
     private static boolean match(Prepared a, Prepared b, int left, int[] matched, boolean[] seen) {
         for (int right = 0; right < matched.length; right++) {
-            if (seen[right] || !overlaps(a.ingredients.get(a.occupied.get(left)), b.ingredients.get(b.occupied.get(right)))) continue;
+            if (seen[right] || !overlaps(a.slots[a.occupied[left]], b.slots[b.occupied[right]])) continue;
             seen[right] = true;
             if (matched[right] < 0 || match(a, b, matched[right], matched, seen)) {
                 matched[right] = left;
@@ -237,10 +359,14 @@ public final class RecipeConflictFinder {
         return false;
     }
 
-    private static boolean overlaps(Ingredient a, Ingredient b) {
+    private static boolean overlaps(@Nullable int[] a, @Nullable int[] b) {
         if (a == null || b == null) return a == b;
-        for (var item : a.items().toList()) {
-            if (b.acceptsItem(item)) return true;
+        int i = 0;
+        int j = 0;
+        while (i < a.length && j < b.length) {
+            if (a[i] == b[j]) return true;
+            if (a[i] < b[j]) i++;
+            else j++;
         }
         return false;
     }

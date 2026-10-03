@@ -1,5 +1,11 @@
 # Changelog
 
+## 26.1.2-1.0.6
+
+### Fixed
+
+- Sped up `/mpa findConflicts` on large packs.
+
 ## 26.1.2-1.0.5
 
 ### Added
