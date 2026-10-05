@@ -147,6 +147,8 @@
   "commands.modpackassistant.showoff.saved": "Showoff screenshot saved to %s",
   "commands.modpackassistant.showoff.screenshot_auto": "Requested a showoff screenshot with a generated name",
   "commands.modpackassistant.showoff.screenshot_named": "Requested showoff screenshot %s",
+  "commands.modpackassistant.showoff.slider_pitch": "Pitch %s",
+  "commands.modpackassistant.showoff.slider_yaw": "Yaw %s",
   "commands.modpackassistant.showoff.status": "Yaw %s  Pitch %s  Zoom %s",
   "commands.modpackassistant.showoff.title_entity": "Entity %s",
   "commands.modpackassistant.showoff.title_file": "File %s",

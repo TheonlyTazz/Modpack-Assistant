@@ -209,6 +209,8 @@ public final class Messages {
     public static final Msg SHOWOFF_BUTTON_SCREENSHOT = msg("showoff.button_screenshot", "Screenshot");
     public static final Msg SHOWOFF_BUTTON_RESET = msg("showoff.button_reset", "Reset view");
     public static final Msg SHOWOFF_BUTTON_DONE = msg("showoff.button_done", "Done");
+    public static final Msg SHOWOFF_SLIDER_YAW = msg("showoff.slider_yaw", "Yaw %s");
+    public static final Msg SHOWOFF_SLIDER_PITCH = msg("showoff.slider_pitch", "Pitch %s");
     public static final Msg SHOWOFF_HINT = msg("showoff.hint", "Drag to rotate, right-drag to pan, scroll to zoom");
     public static final Msg SHOWOFF_STATUS = msg("showoff.status", "Yaw %s  Pitch %s  Zoom %s");
 

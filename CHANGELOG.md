@@ -1,5 +1,19 @@
 # Changelog
 
+## 26.1.2-1.0.7
+
+### Added
+
+- Yaw and Pitch sliders under the showoff preview set either angle on its own, in whole degrees.
+  Scroll over a slider to step it by one degree.
+
+### Changed
+
+- A newly opened showoff preview keeps the yaw and pitch of the last one until the game is closed,
+  whether they were set by a slider, a drag or `/mpa showoff angle`. Zoom and pan still reset.
+  Reset view goes back to the default angle for later previews too. Scripts that need a known angle
+  should send `angle` or `reset` after opening.
+
 ## 26.1.2-1.0.6
 
 ### Fixed
