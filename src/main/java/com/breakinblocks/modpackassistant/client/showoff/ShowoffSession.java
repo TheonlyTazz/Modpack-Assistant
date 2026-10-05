@@ -10,15 +10,16 @@ final class ShowoffSession {
     private final ShowoffSubject subject;
     private final ResourceLocation id;
     private final ShowoffScene scene;
-    private ShowoffView view = ShowoffView.DEFAULT;
+    private ShowoffView view;
     private int background;
     private int previewWidth;
     private int previewHeight;
 
-    ShowoffSession(ShowoffSubject subject, ResourceLocation id, ShowoffScene scene, int background) {
+    ShowoffSession(ShowoffSubject subject, ResourceLocation id, ShowoffScene scene, ShowoffView view, int background) {
         this.subject = subject;
         this.id = id;
         this.scene = scene;
+        this.view = view;
         this.background = background;
     }
 
@@ -44,6 +45,7 @@ final class ShowoffSession {
 
     void view(ShowoffView view) {
         this.view = view;
+        ShowoffClient.rememberAngle(view);
     }
 
     int background() {

@@ -162,8 +162,9 @@ with no one at the game.
 
 ### Opening something to show
 
-Opening a new subject replaces whatever the preview was showing. The view goes back to the default
-angle and zoom; the background colour stays as it was.
+Opening a new subject replaces whatever the preview was showing. Zoom and pan go back to their
+defaults. The background colour and the yaw and pitch stay as they were last set, until the game is
+closed, so a run of screenshots can share one angle without setting it each time.
 
 #### Structure templates
 
@@ -230,9 +231,10 @@ pitch and zoom (plus a reminder of the mouse controls when there is room for it)
 | Left drag in the preview | Rotate. Left and right turn the subject around; up and down tilt the camera |
 | Right or middle drag in the preview | Pan the subject around the frame |
 | Scroll in the preview | Zoom in or out |
+| Yaw and Pitch sliders | Set either angle on its own, in whole degrees; scroll over a slider to step it by one degree |
 | A colour swatch | Set that background colour; hover a swatch to see its name |
 | Transparent | Transparent background, shown as a checkerboard on screen |
-| Reset view | Default angle, zoom 1, no pan (keeps the background) |
+| Reset view | Default angle, zoom 1, no pan (keeps the background); later previews open at the default angle again |
 | Screenshot | Save the preview area as a PNG with a generated name |
 | Done or Escape | Close the preview |
 
@@ -384,6 +386,8 @@ Timing and order:
   anything. If someone closes it, the next of those commands reports "No showoff view is open" in chat
   while the RCON reply still says the command was sent, so a script should open the subject again at
   the start of each image rather than rely on an earlier preview.
+- A newly opened preview keeps the yaw and pitch of the last one, whether they were set by a command,
+  a slider or a drag. A script that needs a known angle should send `angle` or `reset` after opening.
 
 A batch in a shell script, using the `mcrcon` client as an example:
 

@@ -8,6 +8,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Locale;
@@ -43,11 +44,14 @@ final class ShowoffScreen extends Screen {
     private int previewTop;
     private int previewRight;
     private int previewBottom;
+    private int footerTop;
     private int sidebarLeft;
     private int swatchTop;
     private int transparentTop;
     private boolean rotating;
     private boolean panning;
+    private @Nullable ShowoffAngleSlider yawSlider;
+    private @Nullable ShowoffAngleSlider pitchSlider;
 
     ShowoffScreen(ShowoffSession session) {
         super(session.title());
@@ -65,14 +69,15 @@ final class ShowoffScreen extends Screen {
         previewLeft = panelLeft + PADDING;
         previewTop = panelTop + PADDING + font.lineHeight + 4;
         previewRight = sidebarLeft - PADDING;
-        previewBottom = panelBottom - PADDING - font.lineHeight - 4;
+        footerTop = panelBottom - PADDING - font.lineHeight;
+        previewBottom = footerTop - 4 - BUTTON_HEIGHT - PADDING;
         swatchTop = previewTop + font.lineHeight + 3;
         int rows = (ShowoffBackground.SWATCHES.size() + COLUMNS - 1) / COLUMNS;
         transparentTop = swatchTop + rows * (SWATCH + GAP);
         int guiScale = guiScale();
         session.previewSize((previewRight - previewLeft) * guiScale, (previewBottom - previewTop) * guiScale);
 
-        int buttonTop = previewBottom - BUTTON_HEIGHT;
+        int buttonTop = previewBottom + PADDING;
         addRenderableWidget(Button.builder(Messages.SHOWOFF_BUTTON_DONE.get(), button -> onClose())
                 .bounds(sidebarLeft, buttonTop, SIDEBAR, BUTTON_HEIGHT)
                 .build());
@@ -84,6 +89,11 @@ final class ShowoffScreen extends Screen {
         addRenderableWidget(Button.builder(Messages.SHOWOFF_BUTTON_RESET.get(), button -> session.view(ShowoffView.DEFAULT))
                 .bounds(sidebarLeft, buttonTop, SIDEBAR, BUTTON_HEIGHT)
                 .build());
+
+        int sliderTop = previewBottom + PADDING;
+        int sliderWidth = (previewRight - previewLeft - PADDING) / 2;
+        yawSlider = addRenderableWidget(ShowoffAngleSlider.yaw(previewLeft, sliderTop, sliderWidth, BUTTON_HEIGHT, session));
+        pitchSlider = addRenderableWidget(ShowoffAngleSlider.pitch(previewRight - sliderWidth, sliderTop, sliderWidth, BUTTON_HEIGHT, session));
     }
 
     @Override
@@ -106,20 +116,23 @@ final class ShowoffScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        if (yawSlider != null && pitchSlider != null) {
+            yawSlider.sync();
+            pitchSlider.sync();
+        }
         super.render(graphics, mouseX, mouseY, partialTick);
 
         graphics.drawString(font, fit(title.getString(), previewRight - previewLeft), previewLeft, panelTop + PADDING, TEXT);
         graphics.drawString(font, Messages.SHOWOFF_LABEL_BACKGROUND.get(), sidebarLeft, previewTop, TEXT);
         renderSwatches(graphics, mouseX, mouseY);
 
-        int footer = previewBottom + 4;
         ShowoffView view = session.view();
         Component status = Messages.SHOWOFF_STATUS.get(format(view.yaw()), format(view.pitch()), format(view.zoom()));
         int statusWidth = font.width(status);
-        graphics.drawString(font, status, previewRight - statusWidth, footer, MUTED);
+        graphics.drawString(font, status, previewRight - statusWidth, footerTop, MUTED);
         Component hint = Messages.SHOWOFF_HINT.get();
         if (font.width(hint) + statusWidth + PADDING * 2 <= previewRight - previewLeft) {
-            graphics.drawString(font, hint, previewLeft, footer, MUTED);
+            graphics.drawString(font, hint, previewLeft, footerTop, MUTED);
         }
 
         int hovered = swatchAt(mouseX, mouseY);

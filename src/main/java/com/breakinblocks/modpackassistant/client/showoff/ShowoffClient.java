@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 public final class ShowoffClient {
     private static @Nullable ShowoffSession session;
     private static int background = ShowoffBackground.DEFAULT;
+    private static ShowoffView angle = ShowoffView.DEFAULT;
 
     private ShowoffClient() {
     }
@@ -57,7 +58,7 @@ public final class ShowoffClient {
             return;
         }
         ShowoffMeasure.request(scene);
-        ShowoffSession opened = new ShowoffSession(subject, id, scene, background);
+        ShowoffSession opened = new ShowoffSession(subject, id, scene, angle, background);
         session = opened;
         minecraft.setScreen(new ShowoffScreen(opened));
     }
@@ -75,6 +76,10 @@ public final class ShowoffClient {
         if (session != null) {
             session.background(argb);
         }
+    }
+
+    static void rememberAngle(ShowoffView view) {
+        angle = ShowoffView.DEFAULT.withAngle(view.yaw(), view.pitch());
     }
 
     public static void screenshot(String name, int width, int height) {
