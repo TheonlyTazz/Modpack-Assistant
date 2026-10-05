@@ -9,6 +9,26 @@ client, and automatic clipboard copying, which falls back to click-to-copy chat.
 Every command is available as `/modpackassistant ...` or `/mpa ...`. Camel-case names also accept
 their lowercase spelling (`/mpa scanores` works the same as `/mpa scanOres`).
 
+## Headless showoff API
+
+Client integrations can call
+`com.breakinblocks.modpackassistant.client.showoff.ShowoffClient.capture(...)`
+without opening a preview screen:
+
+```java
+CompletableFuture<Path> image = ShowoffClient.capture(
+        ShowoffSubject.ENTITY, Identifier.parse("minecraft:pig"), new CompoundTag(),
+        ShowoffView.DEFAULT, ShowoffBackground.TRANSPARENT, 1024, 1024, output);
+```
+
+The client must have a loaded world and an active render loop. Calls from other threads are
+scheduled on the client thread; do not block that thread waiting for the future. Create the
+parent directory before calling. The future completes after the full-size PNG is written to
+the supplied path, or exceptionally on scene, measurement, rendering, readback, or write failure.
+Invalid arguments throw immediately. `STRUCTURE` subjects accept the same structure-template NBT
+as the preview. Rendering uses the existing scene measurements and framebuffer capture pipeline;
+orchestration and image post-processing belong to the caller.
+
 ## Commands
 
 Admin and player (permission level 2 unless noted):
