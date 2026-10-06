@@ -59,25 +59,35 @@ final class SceneBuilder {
 
     private final Minecraft minecraft = Minecraft.getInstance();
     private final ClientLevel level;
+    private final boolean strict;
     private final Map<ChunkSectionLayer, VertexRecorder> layers = new EnumMap<>(ChunkSectionLayer.class);
     private final List<ShowoffScene.PlacedBlockEntity> blockEntities = new ArrayList<>();
     private final List<EntityRenderState> entities = new ArrayList<>();
     private @Nullable AABB entityBounds;
     private @Nullable BoundingBox blockBounds;
 
-    private SceneBuilder(ClientLevel level) {
+    private SceneBuilder(ClientLevel level, boolean strict) {
         this.level = level;
+        this.strict = strict;
     }
 
     static ShowoffScene structure(CompoundTag data, ClientLevel level) {
-        return new SceneBuilder(level).buildStructure(data);
+        return new SceneBuilder(level, false).buildStructure(data);
+    }
+
+    static ShowoffScene strictStructure(CompoundTag data, ClientLevel level) {
+        return new SceneBuilder(level, true).buildStructure(data);
     }
 
     static @Nullable ShowoffScene entity(Identifier typeId, CompoundTag nbt, ClientLevel level) {
         if (typeId.equals(Identifier.withDefaultNamespace("mannequin"))) {
             return player();
         }
-        return new SceneBuilder(level).buildEntity(typeId, nbt);
+        return new SceneBuilder(level, false).buildEntity(typeId, nbt);
+    }
+
+    static @Nullable ShowoffScene strictEntity(Identifier typeId, CompoundTag nbt, ClientLevel level) {
+        return new SceneBuilder(level, true).buildEntity(typeId, nbt);
     }
 
     private static ShowoffScene player() {
@@ -106,6 +116,9 @@ final class SceneBuilder {
             BlockPos pos = new BlockPos(posTag.getIntOr(0, 0), posTag.getIntOr(1, 0), posTag.getIntOr(2, 0));
             int index = blockTag.getIntOr("state", 0);
             if (index < 0 || index >= palette.size()) {
+                if (strict) {
+                    throw new IllegalArgumentException("Structure block references an invalid palette index " + index);
+                }
                 return;
             }
             CompoundTag nbt = blockTag.getCompound("nbt").orElse(null);
@@ -142,7 +155,7 @@ final class SceneBuilder {
         if (exact != null && entityBounds != null) {
             bounds = bounds.minmax(entityBounds);
         }
-        return new ShowoffScene(layers, blockEntities, entities, bounds, exact);
+        return new ShowoffScene(layers, blockEntities, entities, bounds, exact, strict);
     }
 
     private @Nullable ShowoffScene buildEntity(Identifier typeId, CompoundTag nbt) {
@@ -165,7 +178,7 @@ final class SceneBuilder {
         if (entities.isEmpty() || entityBounds == null) {
             return null;
         }
-        return new ShowoffScene(layers, blockEntities, entities, entityBounds, null);
+        return new ShowoffScene(layers, blockEntities, entities, entityBounds, null, strict);
     }
 
     private void tesselate(StructureBlockGetter blocks) {
@@ -202,6 +215,9 @@ final class SceneBuilder {
                             pos.getX(), pos.getY(), pos.getZ(), blocks, pos, state, models.getBlockStateModelSet().get(state), state.getSeed(pos));
                 }
             } catch (RuntimeException e) {
+                if (strict) {
+                    throw e;
+                }
                 ModpackAssistant.LOGGER.debug("Skipping {} at {} in the showoff view", state, pos, e);
                 layers.values().forEach(recorder -> recorder.offset(0.0F, 0.0F, 0.0F));
             }
@@ -223,6 +239,9 @@ final class SceneBuilder {
             BlockState replacement = BlockStateParser.parseForBlock(blockLookup, nbt.getStringOr("final_state", "minecraft:air"), true).blockState();
             return replacement.is(Blocks.STRUCTURE_VOID) ? Blocks.AIR.defaultBlockState() : replacement;
         } catch (CommandSyntaxException e) {
+            if (strict) {
+                throw new IllegalArgumentException("Invalid structure jigsaw final_state", e);
+            }
             return Blocks.AIR.defaultBlockState();
         }
     }
@@ -232,6 +251,9 @@ final class SceneBuilder {
             BlockEntity blockEntity = null;
             if (nbt != null && nbt.contains("id")) {
                 blockEntity = BlockEntity.loadStatic(pos, state, nbt, level.registryAccess());
+                if (strict && blockEntity == null) {
+                    throw new IllegalArgumentException("Could not load block entity for " + state);
+                }
             }
             if (blockEntity == null && state.getBlock() instanceof EntityBlock entityBlock) {
                 blockEntity = entityBlock.newBlockEntity(pos, state);
@@ -241,12 +263,15 @@ final class SceneBuilder {
             }
             return blockEntity;
         } catch (RuntimeException e) {
+            if (strict) {
+                throw e;
+            }
             ModpackAssistant.LOGGER.debug("Skipping the block entity of {} at {} in the showoff view", state, pos, e);
             return null;
         }
     }
 
-    private static <E extends BlockEntity, S extends BlockEntityRenderState> @Nullable S extract(BlockEntityRenderDispatcher dispatcher, E blockEntity) {
+    private <E extends BlockEntity, S extends BlockEntityRenderState> @Nullable S extract(BlockEntityRenderDispatcher dispatcher, E blockEntity) {
         BlockEntityRenderer<E, S> renderer = dispatcher.getRenderer(blockEntity);
         if (renderer == null) {
             return null;
@@ -257,6 +282,9 @@ final class SceneBuilder {
             state.lightCoords = LightCoordsUtil.FULL_BRIGHT;
             return state;
         } catch (RuntimeException e) {
+            if (strict) {
+                throw e;
+            }
             ModpackAssistant.LOGGER.debug("Skipping the block entity renderer of {} in the showoff view", blockEntity.getType(), e);
             return null;
         }
@@ -272,13 +300,20 @@ final class SceneBuilder {
         tag.remove("UUID");
         try {
             EntityType.create(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), tag), level, EntitySpawnReason.STRUCTURE)
-                    .ifPresent(entity -> {
+                    .ifPresentOrElse(entity -> {
                         entity.snapTo(pos.x, pos.y, pos.z, entity.getYRot(), entity.getXRot());
                         entity.setYBodyRot(entity.getYRot());
                         entity.setYHeadRot(entity.getYRot());
                         addEntity(entity);
+                    }, () -> {
+                        if (strict) {
+                            throw new IllegalArgumentException("Could not create structure entity");
+                        }
                     });
         } catch (RuntimeException e) {
+            if (strict) {
+                throw e;
+            }
             ModpackAssistant.LOGGER.debug("Skipping a template entity in the showoff view", e);
         }
     }
@@ -309,6 +344,9 @@ final class SceneBuilder {
             }
             entityBounds = entityBounds == null ? box : entityBounds.minmax(box);
         } catch (RuntimeException e) {
+            if (strict) {
+                throw e;
+            }
             ModpackAssistant.LOGGER.debug("Skipping {} in the showoff view", entity.getType(), e);
         }
     }

@@ -39,23 +39,37 @@ final class ShowoffScene {
     private final List<EntityRenderState> entities;
     private final @Nullable PlayerShowoff player;
     private final @Nullable AABB exactBounds;
+    private final boolean strict;
     private AABB bounds;
     private List<AABB> silhouette;
     private boolean measuring;
+    private @Nullable RuntimeException measurementFailure;
     private int revision;
 
     ShowoffScene(Map<ChunkSectionLayer, VertexRecorder> layers, List<PlacedBlockEntity> blockEntities,
                  List<EntityRenderState> entities, AABB bounds, @Nullable AABB exactBounds) {
-        this(layers, blockEntities, entities, bounds, exactBounds, null);
+        this(layers, blockEntities, entities, bounds, exactBounds, false, null);
+    }
+
+    ShowoffScene(Map<ChunkSectionLayer, VertexRecorder> layers, List<PlacedBlockEntity> blockEntities,
+                 List<EntityRenderState> entities, AABB bounds, @Nullable AABB exactBounds, boolean strict) {
+        this(layers, blockEntities, entities, bounds, exactBounds, strict, null);
     }
 
     ShowoffScene(Map<ChunkSectionLayer, VertexRecorder> layers, List<PlacedBlockEntity> blockEntities,
                  List<EntityRenderState> entities, AABB bounds, @Nullable AABB exactBounds, @Nullable PlayerShowoff player) {
+        this(layers, blockEntities, entities, bounds, exactBounds, false, player);
+    }
+
+    private ShowoffScene(Map<ChunkSectionLayer, VertexRecorder> layers, List<PlacedBlockEntity> blockEntities,
+                         List<EntityRenderState> entities, AABB bounds, @Nullable AABB exactBounds,
+                         boolean strict, @Nullable PlayerShowoff player) {
         this.layers = new EnumMap<>(layers);
         this.blockEntities = new ArrayList<>(blockEntities);
         this.entities = new ArrayList<>(entities);
         this.player = player;
         this.exactBounds = exactBounds;
+        this.strict = strict;
         this.bounds = bounds;
         this.silhouette = exactBounds == null && player == null ? List.of() : List.of(bounds);
     }
@@ -84,11 +98,24 @@ final class ShowoffScene {
         return measuring;
     }
 
+    @Nullable RuntimeException measurementFailure() {
+        return measurementFailure;
+    }
+
+    void measurementFailed(RuntimeException failure) {
+        measuring = false;
+        measurementFailure = failure;
+        revision++;
+    }
+
     void startMeasuring() {
         measuring = true;
     }
 
     void measured(@Nullable AABB measuredBounds, List<AABB> columns) {
+        if (measurementFailure != null) {
+            return;
+        }
         measuring = false;
         if (measuredBounds != null && !columns.isEmpty()) {
             bounds = measuredBounds;
@@ -150,34 +177,43 @@ final class ShowoffScene {
         SubmitNodeStorage storage = features.getSubmitNodeStorage();
 
         BlockEntityRenderDispatcher blockEntityDispatcher = minecraft.getBlockEntityRenderDispatcher();
-        Iterator<PlacedBlockEntity> placed = blockEntities.iterator();
-        while (placed.hasNext()) {
-            PlacedBlockEntity blockEntity = placed.next();
-            PoseStack local = copy(poseStack);
-            local.translate(blockEntity.pos().getX(), blockEntity.pos().getY(), blockEntity.pos().getZ());
-            try {
-                blockEntityDispatcher.submit(blockEntity.state(), local, storage, camera);
-            } catch (RuntimeException e) {
-                ModpackAssistant.LOGGER.warn("Dropping block entity at {} from the showoff view after it failed to render", blockEntity.pos(), e);
-                placed.remove();
+        try {
+            Iterator<PlacedBlockEntity> placed = blockEntities.iterator();
+            while (placed.hasNext()) {
+                PlacedBlockEntity blockEntity = placed.next();
+                PoseStack local = copy(poseStack);
+                local.translate(blockEntity.pos().getX(), blockEntity.pos().getY(), blockEntity.pos().getZ());
+                try {
+                    blockEntityDispatcher.submit(blockEntity.state(), local, storage, camera);
+                } catch (RuntimeException e) {
+                    if (strict) {
+                        throw e;
+                    }
+                    ModpackAssistant.LOGGER.warn("Dropping block entity at {} from the showoff view after it failed to render", blockEntity.pos(), e);
+                    placed.remove();
+                }
             }
-        }
-
-        EntityRenderDispatcher entityDispatcher = minecraft.getEntityRenderDispatcher();
-        Iterator<EntityRenderState> states = entities.iterator();
-        while (states.hasNext()) {
-            EntityRenderState state = states.next();
-            try {
-                entityDispatcher.submit(state, camera, state.x, state.y, state.z, copy(poseStack), storage);
-            } catch (RuntimeException e) {
-                ModpackAssistant.LOGGER.warn("Dropping {} from the showoff view after it failed to render", state.entityType, e);
-                states.remove();
+            EntityRenderDispatcher entityDispatcher = minecraft.getEntityRenderDispatcher();
+            Iterator<EntityRenderState> states = entities.iterator();
+            while (states.hasNext()) {
+                EntityRenderState state = states.next();
+                try {
+                    entityDispatcher.submit(state, camera, state.x, state.y, state.z, copy(poseStack), storage);
+                } catch (RuntimeException e) {
+                    if (strict) {
+                        throw e;
+                    }
+                    ModpackAssistant.LOGGER.warn("Dropping {} from the showoff view after it failed to render", state.entityType, e);
+                    states.remove();
+                }
             }
+            if (player != null) {
+                player.render(poseStack, storage, camera);
+            }
+            features.renderAllFeatures();
+        } finally {
+            features.clearSubmitNodes();
         }
-        if (player != null) {
-            player.render(poseStack, storage, camera);
-        }
-        features.renderAllFeatures();
     }
 
     private static PoseStack copy(PoseStack poseStack) {
