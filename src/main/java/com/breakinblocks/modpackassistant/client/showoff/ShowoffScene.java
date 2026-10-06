@@ -61,7 +61,7 @@ final class ShowoffScene {
         this(layers, blockEntities, entities, bounds, exactBounds, false, player);
     }
 
-    private ShowoffScene(Map<ChunkSectionLayer, VertexRecorder> layers, List<PlacedBlockEntity> blockEntities,
+    ShowoffScene(Map<ChunkSectionLayer, VertexRecorder> layers, List<PlacedBlockEntity> blockEntities,
                          List<EntityRenderState> entities, AABB bounds, @Nullable AABB exactBounds,
                          boolean strict, @Nullable PlayerShowoff player) {
         this.layers = new EnumMap<>(layers);

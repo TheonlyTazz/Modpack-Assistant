@@ -29,6 +29,30 @@ Invalid arguments throw immediately. `STRUCTURE` subjects accept the same struct
 as the preview. Rendering uses the existing scene measurements and framebuffer capture pipeline;
 orchestration and image post-processing belong to the caller.
 
+For mannequin captures, supply vanilla `equipment` NBT and an optional `Pose` compound:
+
+```snbt
+{
+  equipment: {
+    head: {id: "minecraft:diamond_helmet", count: 1},
+    chest: {id: "minecraft:diamond_chestplate", count: 1},
+    mainhand: {id: "minecraft:diamond_sword", count: 1},
+    offhand: {id: "minecraft:shield", count: 1}
+  },
+  Pose: {
+    Head: [0.0f, 15.0f, 0.0f],
+    RightArm: [-45.0f, 0.0f, 0.0f],
+    LeftArm: [-20.0f, 0.0f, 0.0f]
+  }
+}
+```
+
+Pass this compound as `data` with entity ID `minecraft:mannequin`. Equipment keys are `head`,
+`chest`, `legs`, `feet`, `mainhand`, and `offhand`. Pose keys are `Head`, `Body`, `LeftArm`,
+`RightArm`, `LeftLeg`, and `RightLeg`; each contains pitch, yaw, and roll in degrees, from -180
+to 180. Omitted limbs use zero rotation. Armor and held items follow the specified pose.
+Malformed equipment or pose data completes the capture future exceptionally.
+
 ## Commands
 
 Admin and player (permission level 2 unless noted):

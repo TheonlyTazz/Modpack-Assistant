@@ -8,6 +8,12 @@ import net.minecraft.client.entity.ClientMannequin;
 import net.minecraft.client.renderer.SubmitNodeStorage;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.resources.DefaultPlayerSkin;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NumericTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.world.entity.EntityEquipment;
 import net.minecraft.server.players.ProfileResolver;
 import net.minecraft.util.Util;
 import net.minecraft.util.LightCoordsUtil;
@@ -27,7 +33,9 @@ import java.util.concurrent.CompletionException;
 final class PlayerShowoff {
     static final int PARTS = 6;
     static final String[] PART_NAMES = {"Head", "Body", "Left Arm", "Right Arm", "Left Leg", "Right Leg"};
+    private static final String[] POSE_KEYS = {"Head", "Body", "LeftArm", "RightArm", "LeftLeg", "RightLeg"};
     private final ClientMannequin mannequin;
+    private boolean skinFromMannequin;
     private PlayerSkin selectedSkin;
     private final float[][] rotations = new float[PARTS][3];
     private long request;
@@ -45,7 +53,29 @@ final class PlayerShowoff {
             throw new IllegalStateException("Minecraft did not create a client mannequin");
         }
         mannequin = clientMannequin;
+        skinFromMannequin = false;
         selectedSkin = ClientMannequin.DEFAULT_SKIN;
+    }
+
+    PlayerShowoff(ClientLevel level, CompoundTag entityTag) {
+        Objects.requireNonNull(level, "Client level");
+        Objects.requireNonNull(entityTag, "Mannequin NBT");
+        CompoundTag loadTag = entityTag.copy();
+        if (loadTag.contains("equipment")) {
+            CompoundTag equipmentTag = loadTag.getCompound("equipment")
+                    .orElseThrow(() -> new IllegalArgumentException("Mannequin equipment must be a compound"));
+            EntityEquipment.CODEC.parse(level.registryAccess().createSerializationContext(NbtOps.INSTANCE), equipmentTag)
+                    .result().orElseThrow(() -> new IllegalArgumentException("Invalid mannequin equipment NBT"));
+        }
+        net.minecraft.world.entity.Entity loaded = EntityType.loadEntityRecursive(
+                EntityType.MANNEQUIN, loadTag, level, EntitySpawnReason.COMMAND, entity -> entity);
+        if (!(loaded instanceof ClientMannequin clientMannequin)) {
+            throw new IllegalArgumentException("Showoff entity NBT did not produce a client mannequin");
+        }
+        mannequin = clientMannequin;
+        skinFromMannequin = true;
+        selectedSkin = mannequin.getSkin();
+        loadPose(entityTag);
     }
 
     String status() {
@@ -63,6 +93,7 @@ final class PlayerShowoff {
 
     void inputChanged() {
         request++;
+        skinFromMannequin = false;
         selectedSkin = ClientMannequin.DEFAULT_SKIN;
         status = "Enter a username or UUID";
         revision++;
@@ -119,6 +150,7 @@ final class PlayerShowoff {
         }
         Minecraft minecraft = Minecraft.getInstance();
         ProfileResolver resolver = minecraft.services().profileResolver();
+        skinFromMannequin = false;
         selectedSkin = ClientMannequin.DEFAULT_SKIN;
         status = "Loading skin...";
         revision++;
@@ -154,6 +186,9 @@ final class PlayerShowoff {
 
     void render(PoseStack poseStack, SubmitNodeStorage storage, CameraRenderState camera) {
         ensureOpen();
+        if (skinFromMannequin) {
+            selectedSkin = mannequin.getSkin();
+        }
         ShowoffAvatarRenderer renderer = ShowoffClient.avatarRenderer(selectedSkin.model());
         ShowoffAvatarRenderer.State state = new ShowoffAvatarRenderer.State(rotations);
         renderer.extractRenderState(mannequin, state, 0.0F);
@@ -167,6 +202,48 @@ final class PlayerShowoff {
         if (closed) {
             throw new IllegalStateException("The player showoff session is closed");
         }
+    }
+
+    private void loadPose(CompoundTag entityTag) {
+        if (!entityTag.contains("Pose")) {
+            return;
+        }
+        CompoundTag pose = entityTag.getCompound("Pose")
+                .orElseThrow(() -> new IllegalArgumentException("Showoff Pose must be a compound"));
+        for (String key : pose.keySet()) {
+            if (!Arrays.asList(POSE_KEYS).contains(key)) {
+                throw new IllegalArgumentException("Unknown showoff Pose limb: " + key);
+            }
+        }
+        for (int part = 0; part < PART_NAMES.length; part++) {
+            String name = POSE_KEYS[part];
+            net.minecraft.nbt.Tag raw = pose.get(name);
+            if (raw == null) {
+                continue;
+            }
+            if (!(raw instanceof ListTag angles) || angles.size() != 3) {
+                throw new IllegalArgumentException("Showoff Pose." + name + " must be a numeric list of three angles");
+            }
+            float[] values = new float[3];
+            boolean valid = true;
+            for (int axis = 0; axis < 3; axis++) {
+                net.minecraft.nbt.Tag value = angles.get(axis);
+                if (!(value instanceof NumericTag numeric)) {
+                    valid = false;
+                    break;
+                }
+                values[axis] = numeric.floatValue();
+                if (!Float.isFinite(values[axis]) || values[axis] < -180.0F || values[axis] > 180.0F) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (!valid) {
+                throw new IllegalArgumentException("Showoff Pose." + name + " contains invalid angles");
+            }
+            System.arraycopy(values, 0, rotations[part], 0, 3);
+        }
+        revision++;
     }
 
     private static UUID parseUuid(String value) {
