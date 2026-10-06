@@ -33,6 +33,7 @@ For mannequin captures, supply vanilla `equipment` NBT and an optional `Pose` co
 
 ```snbt
 {
+  profile: {name: "TheonlyTazz"},
   equipment: {
     head: {id: "minecraft:diamond_helmet", count: 1},
     chest: {id: "minecraft:diamond_chestplate", count: 1},
@@ -52,6 +53,9 @@ Pass this compound as `data` with entity ID `minecraft:mannequin`. Equipment key
 `RightArm`, `LeftLeg`, and `RightLeg`; each contains pitch, yaw, and roll in degrees, from -180
 to 180. Omitted limbs use zero rotation. Armor and held items follow the specified pose.
 Malformed equipment or pose data completes the capture future exceptionally.
+When `profile` is supplied, capture waits for profile resolution and skin download before measuring
+or rendering. Failed or timed-out skin requests fail the capture instead of producing a default-skin
+image. Omitting `profile` uses the mannequin's default skin.
 
 ## Commands
 

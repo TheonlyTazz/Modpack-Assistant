@@ -25,6 +25,8 @@ import net.minecraft.world.entity.player.PlayerModelType;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.HashSet;
+import java.util.Set;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
@@ -35,6 +37,7 @@ public final class ShowoffClient {
     private static int background = ShowoffBackground.DEFAULT;
     private static ShowoffView angle = ShowoffView.DEFAULT;
     private static final Map<PlayerModelType, ShowoffAvatarRenderer> avatarRenderers = new EnumMap<>(PlayerModelType.class);
+    private static final Set<CompletableFuture<Path>> pendingSkinCaptures = new HashSet<>();
 
     private ShowoffClient() {
     }
@@ -63,6 +66,10 @@ public final class ShowoffClient {
 
     @SubscribeEvent
     public static void loggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        for (CompletableFuture<Path> pending : Set.copyOf(pendingSkinCaptures)) {
+            pending.completeExceptionally(new IllegalStateException("Showoff skin preparation cancelled because the client logged out"));
+        }
+        pendingSkinCaptures.clear();
         if (session != null && session.player() != null) {
             session.player().close();
         }
@@ -149,8 +156,34 @@ public final class ShowoffClient {
                     if (scene == null) {
                         throw new IllegalArgumentException("Could not build showoff scene for " + id);
                     }
-                    ShowoffMeasure.request(scene, true);
-                    ShowoffCapture.requestHeadless(scene, view, background, width, height, output, result);
+                    PlayerShowoff player = scene.player();
+                    if (player != null) {
+                        pendingSkinCaptures.add(result);
+                        result.whenCompleteAsync((file, failure) -> {
+                            pendingSkinCaptures.remove(result);
+                            player.close();
+                        }, Minecraft.getInstance());
+                    }
+                    CompletableFuture<Void> preparation = player == null
+                            ? CompletableFuture.completedFuture(null) : player.prepareSkin();
+                    preparation.whenCompleteAsync((ignored, failure) -> {
+                        pendingSkinCaptures.remove(result);
+                        if (result.isDone()) {
+                            return;
+                        }
+                        try {
+                            if (failure != null) {
+                                throw new java.util.concurrent.CompletionException("Could not prepare mannequin skin", failure);
+                            }
+                            if (Minecraft.getInstance().level != level) {
+                                throw new IllegalStateException("Client world changed while preparing showoff capture");
+                            }
+                            ShowoffMeasure.request(scene, true);
+                            ShowoffCapture.requestHeadless(scene, view, background, width, height, output, result);
+                        } catch (RuntimeException e) {
+                            result.completeExceptionally(e);
+                        }
+                    }, Minecraft.getInstance());
                 } catch (RuntimeException e) {
                     result.completeExceptionally(e);
                 }

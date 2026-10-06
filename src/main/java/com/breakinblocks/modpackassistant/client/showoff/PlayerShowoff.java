@@ -23,6 +23,8 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ResolvableProfile;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -36,6 +38,7 @@ final class PlayerShowoff {
     private static final String[] POSE_KEYS = {"Head", "Body", "LeftArm", "RightArm", "LeftLeg", "RightLeg"};
     private final ClientMannequin mannequin;
     private boolean skinFromMannequin;
+    private final @Nullable CompoundTag sourceTag;
     private PlayerSkin selectedSkin;
     private final float[][] rotations = new float[PARTS][3];
     private long request;
@@ -54,6 +57,7 @@ final class PlayerShowoff {
         }
         mannequin = clientMannequin;
         skinFromMannequin = false;
+        sourceTag = null;
         selectedSkin = ClientMannequin.DEFAULT_SKIN;
     }
 
@@ -74,8 +78,35 @@ final class PlayerShowoff {
         }
         mannequin = clientMannequin;
         skinFromMannequin = true;
+        sourceTag = loadTag;
         selectedSkin = mannequin.getSkin();
         loadPose(entityTag);
+    }
+
+    CompletableFuture<Void> prepareSkin() {
+        if (sourceTag == null || !sourceTag.contains("profile")) {
+            return CompletableFuture.completedFuture(null);
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null) {
+            throw new IllegalStateException("Cannot resolve mannequin skin without a client level");
+        }
+        ResolvableProfile profile = ResolvableProfile.CODEC.parse(
+                minecraft.level.registryAccess().createSerializationContext(NbtOps.INSTANCE), sourceTag.get("profile"))
+                .result().orElseThrow(() -> new IllegalArgumentException("Invalid mannequin profile NBT"));
+        if (!profile.skinPatch().equals(PlayerSkin.Patch.EMPTY)) {
+            throw new IllegalArgumentException("Mannequin skin patches are unsupported by the showoff renderer");
+        }
+        return profile.resolveProfile(minecraft.services().profileResolver())
+                .thenComposeAsync(gameProfile -> minecraft.getSkinManager().get(gameProfile)
+                        .thenApply(skin -> skin.orElseThrow(() -> new IllegalStateException("Player skin could not be loaded for " + gameProfile.name()))), minecraft)
+                .orTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .thenAcceptAsync(skin -> {
+                    ensureOpen();
+                    selectedSkin = skin;
+                    skinFromMannequin = false;
+                    revision++;
+                }, minecraft);
     }
 
     String status() {
