@@ -5,6 +5,9 @@ import com.breakinblocks.modpackassistant.showoff.ShowoffView;
 import com.breakinblocks.modpackassistant.util.Messages;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Objects;
 
 final class ShowoffSession {
     private final ShowoffSubject subject;
@@ -14,6 +17,8 @@ final class ShowoffSession {
     private int background;
     private int previewWidth;
     private int previewHeight;
+    private int posePart;
+    private String playerInput = "";
 
     ShowoffSession(ShowoffSubject subject, Identifier id, ShowoffScene scene, ShowoffView view, int background) {
         this.subject = subject;
@@ -37,6 +42,26 @@ final class ShowoffSession {
             case FILE -> Messages.SHOWOFF_TITLE_FILE.get(id.getPath());
             case ENTITY -> Messages.SHOWOFF_TITLE_ENTITY.get(id.toString());
         };
+    }
+
+    @Nullable PlayerShowoff player() {
+        return scene.player();
+    }
+
+    int posePart() {
+        return posePart;
+    }
+
+    void posePart(int part) {
+        posePart = Objects.checkIndex(part, PlayerShowoff.PARTS);
+    }
+
+    String playerInput() {
+        return playerInput;
+    }
+
+    void playerInput(String value) {
+        playerInput = value;
     }
 
     ShowoffView view() {

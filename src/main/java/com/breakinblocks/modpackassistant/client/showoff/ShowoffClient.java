@@ -1,6 +1,7 @@
 package com.breakinblocks.modpackassistant.client.showoff;
 
 import com.breakinblocks.modpackassistant.ModpackAssistant;
+import com.breakinblocks.modpackassistant.net.ShowoffOpenPayload;
 import com.breakinblocks.modpackassistant.showoff.ShowoffBackground;
 import com.breakinblocks.modpackassistant.showoff.ShowoffSubject;
 import com.breakinblocks.modpackassistant.showoff.ShowoffView;
@@ -14,17 +15,35 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterPictureInPictureRenderersEvent;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
 import org.jspecify.annotations.Nullable;
+import net.minecraft.world.entity.player.PlayerModelType;
+
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.Objects;
 
 @EventBusSubscriber(modid = ModpackAssistant.MOD_ID, value = Dist.CLIENT)
 public final class ShowoffClient {
     private static @Nullable ShowoffSession session;
     private static int background = ShowoffBackground.DEFAULT;
     private static ShowoffView angle = ShowoffView.DEFAULT;
+    private static final Map<PlayerModelType, ShowoffAvatarRenderer> avatarRenderers = new EnumMap<>(PlayerModelType.class);
 
     private ShowoffClient() {
+    }
+
+    @SubscribeEvent
+    public static void createAvatarRenderers(EntityRenderersEvent.AddLayers event) {
+        avatarRenderers.clear();
+        avatarRenderers.put(PlayerModelType.WIDE, new ShowoffAvatarRenderer(event.getContext(), false));
+        avatarRenderers.put(PlayerModelType.SLIM, new ShowoffAvatarRenderer(event.getContext(), true));
+    }
+
+    static ShowoffAvatarRenderer avatarRenderer(PlayerModelType model) {
+        return Objects.requireNonNull(avatarRenderers.get(model), "Showoff avatar renderer has not been initialized: " + model);
     }
 
     @SubscribeEvent
@@ -40,6 +59,9 @@ public final class ShowoffClient {
 
     @SubscribeEvent
     public static void loggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        if (session != null && session.player() != null) {
+            session.player().close();
+        }
         session = null;
         ShowoffMeasure.clear();
         ShowoffCapture.clear();
@@ -63,8 +85,15 @@ public final class ShowoffClient {
             ShowoffCapture.chat(Messages.SHOWOFF_ENTITY_FAILED.get(id.toString()).withStyle(ChatFormatting.RED));
             return;
         }
-        ShowoffMeasure.request(scene);
+        if (scene.player() == null) {
+            ShowoffMeasure.request(scene);
+        }
         ShowoffSession opened = new ShowoffSession(subject, id, scene, angle, background);
+        if (scene.player() != null && data.contains(ShowoffOpenPayload.PLAYER_INPUT_KEY)) {
+            String playerInput = data.getString(ShowoffOpenPayload.PLAYER_INPUT_KEY).orElseThrow();
+            opened.playerInput(playerInput);
+            scene.player().lookup(playerInput);
+        }
         session = opened;
         minecraft.setScreen(new ShowoffScreen(opened));
     }
@@ -105,6 +134,9 @@ public final class ShowoffClient {
     }
 
     static void closed(ShowoffSession closed) {
+        if (closed.player() != null) {
+            closed.player().close();
+        }
         if (session == closed) {
             session = null;
         }

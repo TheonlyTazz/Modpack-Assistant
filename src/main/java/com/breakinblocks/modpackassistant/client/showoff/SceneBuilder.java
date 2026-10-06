@@ -74,7 +74,16 @@ final class SceneBuilder {
     }
 
     static @Nullable ShowoffScene entity(Identifier typeId, CompoundTag nbt, ClientLevel level) {
+        if (typeId.equals(Identifier.withDefaultNamespace("mannequin"))) {
+            return player();
+        }
         return new SceneBuilder(level).buildEntity(typeId, nbt);
+    }
+
+    private static ShowoffScene player() {
+        // Covers every limb rotation; a standing-pose silhouette would clip extended limbs.
+        return new ShowoffScene(new EnumMap<>(ChunkSectionLayer.class), List.of(), List.of(),
+                new AABB(-1.2, -0.2, -1.2, 1.2, 2.4, 1.2), null, new PlayerShowoff());
     }
 
     private ShowoffScene buildStructure(CompoundTag data) {

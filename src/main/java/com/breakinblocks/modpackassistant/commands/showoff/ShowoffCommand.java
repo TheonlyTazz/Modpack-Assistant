@@ -73,6 +73,10 @@ public final class ShowoffCommand {
                                 .executes(context -> entity(context, new CompoundTag()))
                                 .then(Commands.argument("nbt", CompoundTagArgument.compoundTag())
                                         .executes(context -> entity(context, CompoundTagArgument.getCompoundTag(context, "nbt"))))))
+                .then(Commands.literal("player")
+                        .then(Commands.argument("player", StringArgumentType.word())
+                                .suggests((context, builder) -> SharedSuggestionProvider.suggest(context.getSource().getServer().getPlayerNames(), builder))
+                                .executes(context -> player(context, StringArgumentType.getString(context, "player")))))
                 .then(Commands.literal("angle")
                         .then(Commands.argument("yaw", FloatArgumentType.floatArg())
                                 .then(Commands.argument("pitch", FloatArgumentType.floatArg(ShowoffView.MIN_PITCH, ShowoffView.MAX_PITCH))
@@ -181,6 +185,22 @@ public final class ShowoffCommand {
         }
         MANetworking.sendShowoff(player, new ShowoffOpenPayload(ShowoffSubject.ENTITY, id, nbt.copy()));
         return CommandResults.success(source, Messages.SHOWOFF_OPEN_ENTITY.get(id.toString()));
+    }
+
+    private static int player(CommandContext<CommandSourceStack> context, String requested) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer viewer = CommandResults.player(source);
+        if (!requested.matches("[A-Za-z0-9_]{1,16}") && !requested.matches("[0-9a-fA-F]{32}")
+                && !requested.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")) {
+            return CommandResults.fail(source, Messages.SHOWOFF_PLAYER_INVALID.get(requested));
+        }
+        if (!MANetworking.canShowoff(viewer)) {
+            return CommandResults.fail(source, Messages.SHOWOFF_NO_CLIENT.get(viewer.getName()));
+        }
+        CompoundTag data = new CompoundTag();
+        data.putString(ShowoffOpenPayload.PLAYER_INPUT_KEY, requested);
+        MANetworking.sendShowoff(viewer, new ShowoffOpenPayload(ShowoffSubject.ENTITY, Identifier.withDefaultNamespace("mannequin"), data));
+        return CommandResults.success(source, Messages.SHOWOFF_OPEN_PLAYER.get(requested));
     }
 
     private static int angle(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

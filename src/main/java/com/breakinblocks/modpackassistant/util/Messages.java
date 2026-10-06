@@ -197,6 +197,8 @@ public final class Messages {
     public static final Msg SHOWOFF_NOT_OPEN = msg("showoff.not_open", "No showoff view is open");
     public static final Msg SHOWOFF_BUILD_FAILED = msg("showoff.build_failed", "Could not build the showoff view of %s: %s");
     public static final Msg SHOWOFF_ENTITY_FAILED = msg("showoff.entity_failed", "Could not create entity %s for the showoff view");
+    public static final Msg SHOWOFF_PLAYER_INVALID = msg("showoff.player_invalid", "Invalid player name or UUID: %s");
+    public static final Msg SHOWOFF_OPEN_PLAYER = msg("showoff.open_player", "Showing player %s");
     public static final Msg SHOWOFF_SAVED = msg("showoff.saved", "Showoff screenshot saved to %s");
     public static final Msg SHOWOFF_SAVE_FAILED = msg("showoff.save_failed", "Could not save showoff screenshot %s: %s");
     public static final Msg SHOWOFF_CAPTURE_TOO_LARGE = msg("showoff.capture_too_large", "A %s by %s screenshot is above this GPU's texture limit of %s");
