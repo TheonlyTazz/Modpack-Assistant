@@ -28,17 +28,23 @@ final class ShowoffMeasure {
     private static final int MAX_ATTEMPTS = 3;
     private static final Projection PROJECTION = new Projection();
     private static final List<Attempt> QUEUE = new ArrayList<>();
+    private static long generation;
     private static @Nullable ProjectionMatrixBuffer projectionBuffer;
 
     private ShowoffMeasure() {
     }
 
     static void request(ShowoffScene scene) {
+        request(scene, false);
+    }
+
+    static void request(ShowoffScene scene, boolean strict) {
         scene.startMeasuring();
-        QUEUE.add(new Attempt(scene, scene.center(), scene.measureReach(), 1));
+        QUEUE.add(new Attempt(scene, scene.center(), scene.measureReach(), 1, strict, generation));
     }
 
     static void clear() {
+        generation++;
         QUEUE.clear();
     }
 
@@ -49,9 +55,16 @@ final class ShowoffMeasure {
         List<Attempt> attempts = List.copyOf(QUEUE);
         QUEUE.clear();
         for (Attempt attempt : attempts) {
+            if (!attempt.active()) {
+                continue;
+            }
             try {
                 measure(attempt);
             } catch (RuntimeException e) {
+                if (attempt.strict()) {
+                    attempt.scene().measurementFailed(e);
+                    continue;
+                }
                 ModpackAssistant.LOGGER.warn("Could not measure the showoff view; framing falls back to hitboxes", e);
                 attempt.scene().measured(null, List.of());
             }
@@ -60,52 +73,99 @@ final class ShowoffMeasure {
 
     private static void measure(Attempt attempt) {
         Views views = new Views(attempt);
-        renderView(attempt, new Quaternionf(), bounds -> views.front(bounds));
-        renderView(attempt, new Quaternionf().rotationX(Mth.HALF_PI), bounds -> views.top(bounds));
+        renderView(attempt, new Quaternionf(), views::front);
+        renderView(attempt, new Quaternionf().rotationX(Mth.HALF_PI), views::top);
     }
 
     private static void renderView(Attempt attempt, Quaternionf rotation, ViewResult result) {
         GpuDevice device = RenderSystem.getDevice();
-        GpuTexture color = device.createTexture(() -> "Showoff measure", GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC,
-                TextureFormat.RGBA8, SIZE, SIZE, 1, 1);
-        GpuTextureView colorView = device.createTextureView(color);
-        TextureFormat depthFormat = Minecraft.getInstance().getMainRenderTarget().getDepthTexture().getFormat();
-        GpuTexture depth = device.createTexture(() -> "Showoff measure depth", GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST, depthFormat, SIZE, SIZE, 1, 1);
-        GpuTextureView depthView = device.createTextureView(depth);
-        CommandEncoder encoder = device.createCommandEncoder();
-        encoder.clearColorAndDepthTextures(color, 0, depth, 1.0);
+        ShowoffGpuResources resources = new ShowoffGpuResources();
+        GpuTexture color;
+        GpuTextureView colorView;
+        GpuTexture depth;
+        GpuTextureView depthView;
+        try {
+            color = device.createTexture(() -> "Showoff measure", GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC,
+                    TextureFormat.RGBA8, SIZE, SIZE, 1, 1);
+            resources.color(color);
+            colorView = device.createTextureView(color);
+            resources.colorView(colorView);
+            TextureFormat depthFormat = Minecraft.getInstance().getMainRenderTarget().getDepthTexture().getFormat();
+            depth = device.createTexture(() -> "Showoff measure depth", GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST, depthFormat, SIZE, SIZE, 1, 1);
+            resources.depth(depth);
+            depthView = device.createTextureView(depth);
+            resources.depthView(depthView);
+        } catch (RuntimeException e) {
+            resources.closeAfterFailure(e);
+            throw e;
+        }
+        CommandEncoder encoder;
+        try {
+            encoder = device.createCommandEncoder();
+            encoder.clearColorAndDepthTextures(color, 0, depth, 1.0);
+        } catch (RuntimeException e) {
+            resources.closeAfterFailure(e);
+            throw e;
+        }
 
         float scale = (float) (SIZE / (2.0 * attempt.reach()));
         MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
-        buffers.endBatch();
-        RenderSystem.backupProjectionMatrix();
-        RenderSystem.outputColorTextureOverride = colorView;
-        RenderSystem.outputDepthTextureOverride = depthView;
         try {
-            ShowoffDraw.render(attempt.scene(), rotation, attempt.center(), attempt.reach(), scale, SIZE / 2.0F, SIZE / 2.0F,
-                    SIZE, SIZE, buffers, PROJECTION, projectionBuffer());
             buffers.endBatch();
-        } finally {
-            RenderSystem.outputColorTextureOverride = null;
-            RenderSystem.outputDepthTextureOverride = null;
-            RenderSystem.restoreProjectionMatrix();
+            RenderSystem.backupProjectionMatrix();
+            GpuTextureView previousColor = RenderSystem.outputColorTextureOverride;
+            GpuTextureView previousDepth = RenderSystem.outputDepthTextureOverride;
+            RenderSystem.outputColorTextureOverride = colorView;
+            RenderSystem.outputDepthTextureOverride = depthView;
+            try {
+                ShowoffDraw.render(attempt.scene(), rotation, attempt.center(), attempt.reach(), scale, SIZE / 2.0F, SIZE / 2.0F,
+                        SIZE, SIZE, buffers, PROJECTION, projectionBuffer());
+            } finally {
+                try {
+                    buffers.endBatch();
+                } finally {
+                    RenderSystem.outputColorTextureOverride = previousColor;
+                    RenderSystem.outputDepthTextureOverride = previousDepth;
+                    RenderSystem.restoreProjectionMatrix();
+                }
+            }
+        } catch (RuntimeException e) {
+            resources.closeAfterFailure(e);
+            throw e;
         }
 
-        GpuBuffer readback = device.createBuffer(() -> "Showoff measure readback", GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST,
-                (long) SIZE * SIZE * color.getFormat().pixelSize());
-        encoder.copyTextureToBuffer(color, readback, 0L, () -> {
-            @Nullable ViewBounds bounds;
-            try (GpuBuffer.MappedView mapped = encoder.mapBuffer(readback, true, false)) {
-                bounds = scan(mapped.data(), scale);
-            } finally {
-                readback.close();
-                colorView.close();
-                color.close();
-                depthView.close();
-                depth.close();
-            }
-            result.accept(bounds);
-        }, 0);
+        GpuBuffer readback;
+        try {
+            readback = device.createBuffer(() -> "Showoff measure readback", GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST,
+                    (long) SIZE * SIZE * color.getFormat().pixelSize());
+            resources.readback(readback);
+        } catch (RuntimeException e) {
+            resources.closeAfterFailure(e);
+            throw e;
+        }
+        try {
+            encoder.copyTextureToBuffer(color, readback, 0L, () -> {
+                try (resources) {
+                    if (!attempt.active()) {
+                        return;
+                    }
+                    ViewBounds bounds;
+                    try (GpuBuffer.MappedView mapped = encoder.mapBuffer(readback, true, false)) {
+                        bounds = scan(mapped.data(), scale);
+                    }
+                    result.accept(bounds);
+                } catch (RuntimeException e) {
+                    if (attempt.strict() && attempt.generation() == generation) {
+                        attempt.scene().measurementFailed(e);
+                    } else if (!attempt.strict()) {
+                        throw e;
+                    }
+                }
+            }, 0);
+        } catch (RuntimeException e) {
+            resources.closeAfterFailure(e);
+            throw e;
+        }
     }
 
     private static @Nullable ViewBounds scan(ByteBuffer data, float scale) {
@@ -156,7 +216,10 @@ final class ShowoffMeasure {
         void accept(@Nullable ViewBounds bounds);
     }
 
-    private record Attempt(ShowoffScene scene, Vec3 center, double reach, int number) {
+    private record Attempt(ShowoffScene scene, Vec3 center, double reach, int number, boolean strict, long generation) {
+        boolean active() {
+            return generation == ShowoffMeasure.generation && scene.measuring() && scene.measurementFailure() == null;
+        }
     }
 
     private record ViewBounds(float[] low, float[] high, float bottom, float top, float scale, boolean clipped) {
@@ -186,16 +249,27 @@ final class ShowoffMeasure {
         }
 
         private void received() {
+            if (!attempt.active()) {
+                return;
+            }
             if (++received < 2) {
                 return;
             }
             ShowoffScene scene = attempt.scene();
             if (front == null || top == null) {
+                if (attempt.strict()) {
+                    scene.measurementFailed(new IllegalStateException("Showoff measurement produced no visible pixels"));
+                    return;
+                }
                 scene.measured(null, List.of());
                 return;
             }
             if ((front.clipped() || top.clipped()) && attempt.number() < MAX_ATTEMPTS) {
-                QUEUE.add(new Attempt(scene, attempt.center(), attempt.reach() * RETRY_GROWTH, attempt.number() + 1));
+                QUEUE.add(new Attempt(scene, attempt.center(), attempt.reach() * RETRY_GROWTH, attempt.number() + 1, attempt.strict(), attempt.generation()));
+                return;
+            }
+            if (attempt.strict() && (front.clipped() || top.clipped())) {
+                scene.measurementFailed(new IllegalStateException("Showoff measurement remained clipped after retries"));
                 return;
             }
             Vec3 center = attempt.center();
